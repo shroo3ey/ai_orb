@@ -5,7 +5,7 @@ ${NOISE_GLSL}
 
 attribute float aSeed;
 attribute float aRadialOffset;
-attribute float aPhase;
+attribute float aPhase; // [0,1] per-particle random used as angular-speed multiplier
 
 uniform float uTime;
 uniform float uState;
@@ -15,49 +15,74 @@ uniform float uPointSizeScale;
 uniform float uOrbRadius;
 uniform float uCamDist;
 
-// Packed state parameters: .x=idle, .y=conscious, .z=subconscious, .w=transitioning
-uniform vec4 uOrbitSpeeds;
-uniform vec4 uTurbAmps;
-uniform vec4 uNoiseFreqs;
-uniform vec4 uNoiseSpeeds;
-uniform vec4 uBreathFreqs;
-uniform vec4 uBreathAmps;
+// Time-integrated phases (accumulated in JS using dt × blended-speed, so speed changes
+// don't retroactively scale by elapsed time).
+uniform float uOrbitAngle;
+uniform float uNoisePhase;
+uniform float uBreathPhase;
+uniform float uAttractPhase;
+
+// Attractor (clumping) field parameters — global, not per-state.
+uniform float uAttractFreq;
+uniform float uAttractStrength;
+
+// Per-particle rotation-axis wobble amount; 0 = all share Y axis, 1 = fully noise-driven.
+uniform float uAxisVariance;
+
+// Packed state parameters: .x=idle, .y=conscious, .z=subconscious
+uniform vec3 uTurbAmps;
+uniform vec3 uNoiseFreqs;
+uniform vec3 uBreathAmps;
 
 varying float vSeed;
 varying float vDepth;
 varying float vEdgeFade;
 
-vec3 rotateY(vec3 p, float a) {
+// Rodrigues rotation around an arbitrary unit axis through the origin.
+// Preserves distance from origin, so sphere membership is retained.
+vec3 rotateAxis(vec3 p, vec3 axis, float a) {
   float c = cos(a);
   float s = sin(a);
-  return vec3(c * p.x + s * p.z, p.y, -s * p.x + c * p.z);
+  return p * c + cross(axis, p) * s + axis * dot(axis, p) * (1.0 - c);
 }
 
 void main() {
   float wIdle = clamp(1.0 - abs(uState - 0.0), 0.0, 1.0);
   float wCons = clamp(1.0 - abs(uState - 1.0), 0.0, 1.0);
   float wSubc = clamp(1.0 - abs(uState - 2.0), 0.0, 1.0);
-  float wTran = clamp(1.0 - abs(uState - 3.0), 0.0, 1.0);
-  vec4 w = vec4(wIdle, wCons, wSubc, wTran);
+  vec3 w = vec3(wIdle, wCons, wSubc);
 
-  float orbitSpeed = dot(uOrbitSpeeds, w);
   float turbAmp    = dot(uTurbAmps, w);
   float noiseFreq  = dot(uNoiseFreqs, w);
-  float noiseSpeed = dot(uNoiseSpeeds, w);
+  float breathAmp  = dot(uBreathAmps, w);
 
-  // Breathing: idle/cons/subc are sinusoidal; transitioning is a constant outward push.
-  float breathIdle = sin(uTime * uBreathFreqs.x) * uBreathAmps.x;
-  float breathCons = sin(uTime * uBreathFreqs.y) * uBreathAmps.y;
-  float breathSubc = sin(uTime * uBreathFreqs.z) * uBreathAmps.z;
-  float breathTran = uBreathAmps.w;
-  float breath = breathIdle * wIdle + breathCons * wCons + breathSubc * wSubc + breathTran * wTran;
+  float breath = sin(uBreathPhase) * breathAmp;
 
   vec3 p = position;
 
-  p = rotateY(p, uTime * orbitSpeed + aPhase * 0.1);
+  // Per-particle speed spread (0.4x..1.6x) so particles overtake each other like a swarm.
+  float swarmSpeed = 20.4 + aPhase * 1.2;
 
-  vec3 noisePos = p * noiseFreq + vec3(uTime * noiseSpeed);
+  // Per-particle rotation axis = shared base axis + clamped noise wobble.
+  // uAxisVariance controls how much each particle deviates from the shared direction.
+  vec3 axisSeed = position * 3.0;
+  vec3 axisNoise = vec3(
+    snoise(axisSeed),
+    snoise(axisSeed + vec3(17.3,  0.0,  0.0)),
+    snoise(axisSeed + vec3( 0.0, 31.1,  0.0))
+  );
+  vec3 axis = normalize(vec3(0.0, 1.0, 0.0) + axisNoise * uAxisVariance);
+
+  p = rotateAxis(p, axis, uOrbitAngle * swarmSpeed);
+
+  vec3 noisePos = p * noiseFreq + vec3(uNoisePhase);
   p += curl(noisePos) * turbAmp;
+
+  // Attractor pull: displace toward gradient of a slowly-evolving scalar noise field.
+  // Neighbors near a peak get pulled the same direction → clumps form.
+  // Peaks drift over time (uAttractPhase) → clumps break and reform elsewhere.
+  vec3 attractPos = p * uAttractFreq + vec3(uAttractPhase);
+  p += gradNoise(attractPos) * uAttractStrength;
 
   p *= (1.0 + breath);
 

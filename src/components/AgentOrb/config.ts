@@ -10,13 +10,19 @@ export interface StateMotion {
 export interface OrbConfig {
   particleCount: number;
   orbRadius: number;         // physical radius of the particle sphere (world units)
+  radialJitter: number;      // max fractional radial deviation from perfect sphere (e.g. 0.02 = +/-2%)
   pointSizeBase: number;     // base pixel size multiplier (uSize uniform)
   pointSizeScale: number;    // perspective scale (K in K/viewDist); raise for bigger particles
   alphaAttenuation: number;  // multiplied into final fragment alpha; lower = more translucent
   cameraDistance: number;    // camera orbit radius (world units); MUST be > orbRadius
   cameraOrbitSpeed: number;  // rad/sec, camera auto-rotation
-  burstDurationMs: number;   // hold-time on state 3 during auto-transitions
   lerpTau: number;           // uState lerp time constant (seconds) — ~3× tau to fully settle
+  attract: {
+    freq: number;            // spatial frequency of the attractor density field
+    speed: number;           // how fast attractor peaks drift through space (noise phase advance rate)
+    strength: number;        // displacement magnitude (world units per frame)
+  };
+  axisVariance: number;      // per-particle rotation-axis wobble; 0 = all particles share Y axis, 1 = fully random directions
   colors: {
     base: number;            // hex — dominant particle color (dim particles)
     conscious: number;       // hex — tint for bright particles in conscious state
@@ -26,33 +32,39 @@ export interface OrbConfig {
     idle: StateMotion;
     conscious: StateMotion;
     subconscious: StateMotion;
-    transitioning: StateMotion;
   };
 }
 
 export const ORB_CONFIG: OrbConfig = {
   particleCount: 8000,
-  orbRadius: 0.4,
+  orbRadius: 0.2,
+  radialJitter: 0.02,
   pointSizeBase: 1.0,
   pointSizeScale: 3.0,
   alphaAttenuation: 1,
 
   cameraDistance: 1.0,
-  cameraOrbitSpeed: 0.05,
+  cameraOrbitSpeed: 0.5,
 
-  burstDurationMs: 700,
-  lerpTau: 0.45,
+  lerpTau: 0.05,
+
+  attract: {
+    freq: 10.0,
+    speed: 0.15,
+    strength: 0.01,
+  },
+
+  axisVariance: 0.05,
 
   colors: {
     base:         0xffffff,
-    conscious:    0xb8d8c9,
+    conscious:    0xefa61e,
     subconscious: 0xc8c4dd,
   },
 
   states: {
-    idle:          { orbitSpeed: 0.02, turbAmp: 0.015, noiseFreq: 1.0, noiseSpeed: 0.3,  breathFreq: 0.8, breathAmp: 0.03 },
-    conscious:     { orbitSpeed: 0.15, turbAmp: 0.05,  noiseFreq: 1.8, noiseSpeed: 0.6,  breathFreq: 2.5, breathAmp: 0.04 },
-    subconscious:  { orbitSpeed: 0.06, turbAmp: 0.12,  noiseFreq: 0.6, noiseSpeed: 0.2,  breathFreq: 0.5, breathAmp: 0.08 },
-    transitioning: { orbitSpeed: 0.04, turbAmp: 0.02,  noiseFreq: 1.0, noiseSpeed: 0.1,  breathFreq: 0,   breathAmp: 0.03 },
+    idle:          { orbitSpeed: 0.0, turbAmp: 0.0, noiseFreq: 0.0, noiseSpeed: 0.0, breathFreq: 3, breathAmp: 0.1 },
+    conscious:     { orbitSpeed: 0.05, turbAmp: 0.0,  noiseFreq: 0.0, noiseSpeed: 0.0, breathFreq: 0.0, breathAmp: 0.1 },
+    subconscious:  { orbitSpeed: 0.1, turbAmp: 0.0,  noiseFreq: 0.0, noiseSpeed: 0.0, breathFreq: 0.0, breathAmp: 0.00 },
   },
 };

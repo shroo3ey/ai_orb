@@ -19,12 +19,10 @@ void main() {
   float wIdle = clamp(1.0 - abs(uState - 0.0), 0.0, 1.0);
   float wCons = clamp(1.0 - abs(uState - 1.0), 0.0, 1.0);
   float wSubc = clamp(1.0 - abs(uState - 2.0), 0.0, 1.0);
-  float wTran = clamp(1.0 - abs(uState - 3.0), 0.0, 1.0);
 
   vec3 tint = uColorBase * wIdle
             + mix(uColorBase, uColorConscious, brightness) * wCons
-            + mix(uColorBase, uColorSubconscious, brightness) * wSubc
-            + uColorBase * wTran;
+            + mix(uColorBase, uColorSubconscious, brightness) * wSubc;
 
   gl_FragColor = vec4(tint, alpha * vEdgeFade * brightness * uAlphaAttenuation);
 }

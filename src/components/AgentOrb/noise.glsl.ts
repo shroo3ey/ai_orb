@@ -64,6 +64,19 @@ float snoise(vec3 v) {
   return 42.0 * dot(m * m, vec4(dot(p0, x0), dot(p1, x1), dot(p2, x2), dot(p3, x3)));
 }
 
+// Gradient of snoise — points uphill toward local noise peaks.
+// Used as an attractor field: positions where particles converge / disperse as the field evolves.
+vec3 gradNoise(vec3 p) {
+  const float e = 0.1;
+  float nx1 = snoise(p + vec3(e, 0.0, 0.0));
+  float nx0 = snoise(p - vec3(e, 0.0, 0.0));
+  float ny1 = snoise(p + vec3(0.0, e, 0.0));
+  float ny0 = snoise(p - vec3(0.0, e, 0.0));
+  float nz1 = snoise(p + vec3(0.0, 0.0, e));
+  float nz0 = snoise(p - vec3(0.0, 0.0, e));
+  return vec3(nx1 - nx0, ny1 - ny0, nz1 - nz0) / (2.0 * e);
+}
+
 vec3 curl(vec3 p) {
   const float e = 0.1;
   float nx1 = snoise(p + vec3(e, 0.0, 0.0));

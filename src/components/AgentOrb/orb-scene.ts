@@ -3,9 +3,9 @@ import { VERTEX_SHADER } from './orb.vert.glsl';
 import { FRAGMENT_SHADER } from './orb.frag.glsl';
 import { ORB_CONFIG, type StateMotion } from './config';
 
-export type OrbState = 'idle' | 'conscious' | 'subconscious' | 'transitioning';
+export type OrbState = 'idle' | 'conscious' | 'subconscious';
 
-export function createOrbGeometry(count: number, radius: number): THREE.BufferGeometry {
+export function createOrbGeometry(count: number, radius: number, radialJitter: number): THREE.BufferGeometry {
   const geometry = new THREE.BufferGeometry();
   const positions = new Float32Array(count * 3);
   const seeds = new Float32Array(count);
@@ -18,8 +18,7 @@ export function createOrbGeometry(count: number, radius: number): THREE.BufferGe
     const theta = 2 * Math.PI * u;
     const phi = Math.acos(2 * v - 1);
 
-    const offsetRand = Math.random();
-    const offset = Math.pow(offsetRand, 2) * 0.2 - 0.15;
+    const offset = (Math.random() * 2 - 1) * radialJitter;
     const r = radius * (1.0 + offset);
 
     positions[i * 3 + 0] = r * Math.sin(phi) * Math.cos(theta);
@@ -28,7 +27,7 @@ export function createOrbGeometry(count: number, radius: number): THREE.BufferGe
 
     seeds[i] = Math.random();
     radialOffsets[i] = offset;
-    phases[i] = Math.random() * Math.PI * 2;
+    phases[i] = Math.random();
   }
 
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
@@ -39,9 +38,9 @@ export function createOrbGeometry(count: number, radius: number): THREE.BufferGe
   return geometry;
 }
 
-function stateVec4(pick: (s: StateMotion) => number): THREE.Vector4 {
+function stateVec3(pick: (s: StateMotion) => number): THREE.Vector3 {
   const s = ORB_CONFIG.states;
-  return new THREE.Vector4(pick(s.idle), pick(s.conscious), pick(s.subconscious), pick(s.transitioning));
+  return new THREE.Vector3(pick(s.idle), pick(s.conscious), pick(s.subconscious));
 }
 
 export function createOrbMaterial(pixelRatio: number): THREE.ShaderMaterial {
@@ -58,12 +57,16 @@ export function createOrbMaterial(pixelRatio: number): THREE.ShaderMaterial {
       uColorBase: { value: new THREE.Color(ORB_CONFIG.colors.base) },
       uColorConscious: { value: new THREE.Color(ORB_CONFIG.colors.conscious) },
       uColorSubconscious: { value: new THREE.Color(ORB_CONFIG.colors.subconscious) },
-      uOrbitSpeeds: { value: stateVec4((s) => s.orbitSpeed) },
-      uTurbAmps: { value: stateVec4((s) => s.turbAmp) },
-      uNoiseFreqs: { value: stateVec4((s) => s.noiseFreq) },
-      uNoiseSpeeds: { value: stateVec4((s) => s.noiseSpeed) },
-      uBreathFreqs: { value: stateVec4((s) => s.breathFreq) },
-      uBreathAmps: { value: stateVec4((s) => s.breathAmp) },
+      uOrbitAngle: { value: 0 },
+      uNoisePhase: { value: 0 },
+      uBreathPhase: { value: 0 },
+      uAttractPhase: { value: 0 },
+      uAttractFreq: { value: ORB_CONFIG.attract.freq },
+      uAttractStrength: { value: ORB_CONFIG.attract.strength },
+      uAxisVariance: { value: ORB_CONFIG.axisVariance },
+      uTurbAmps: { value: stateVec3((s) => s.turbAmp) },
+      uNoiseFreqs: { value: stateVec3((s) => s.noiseFreq) },
+      uBreathAmps: { value: stateVec3((s) => s.breathAmp) },
     },
     vertexShader: VERTEX_SHADER,
     fragmentShader: FRAGMENT_SHADER,
@@ -78,7 +81,6 @@ const STATE_TARGET: Record<OrbState, number> = {
   idle: 0,
   conscious: 1,
   subconscious: 2,
-  transitioning: 3,
 };
 
 export interface OrbScene {
@@ -103,7 +105,7 @@ export function createOrbScene(container: HTMLElement): OrbScene {
   renderer.setSize(width, height);
   container.appendChild(renderer.domElement);
 
-  const geometry = createOrbGeometry(ORB_CONFIG.particleCount, ORB_CONFIG.orbRadius);
+  const geometry = createOrbGeometry(ORB_CONFIG.particleCount, ORB_CONFIG.orbRadius, ORB_CONFIG.radialJitter);
   const material = createOrbMaterial(pixelRatio);
   const points = new THREE.Points(geometry, material);
   scene.add(points);
@@ -111,8 +113,10 @@ export function createOrbScene(container: HTMLElement): OrbScene {
   let currentState: OrbState = 'idle';
   let currentTarget = 0;
   let stateUniform = 0;
-  let burstEndTime = 0;
-  let pendingSettleTarget: number | null = null;
+  let orbitAngle = 0;
+  let noisePhase = 0;
+  let breathPhase = 0;
+  let attractPhase = 0;
 
   const startTime = performance.now();
   let lastFrame = startTime;
@@ -120,23 +124,8 @@ export function createOrbScene(container: HTMLElement): OrbScene {
 
   const setState = (next: OrbState) => {
     if (next === currentState) return;
-    const prev = currentState;
     currentState = next;
-
-    if (next === 'transitioning') {
-      currentTarget = 3;
-      pendingSettleTarget = null;
-      return;
-    }
-
-    if (prev !== 'transitioning') {
-      currentTarget = 3;
-      burstEndTime = performance.now() + ORB_CONFIG.burstDurationMs;
-      pendingSettleTarget = STATE_TARGET[next];
-    } else {
-      currentTarget = STATE_TARGET[next];
-      pendingSettleTarget = null;
-    }
+    currentTarget = STATE_TARGET[next];
   };
 
   const animate = () => {
@@ -146,15 +135,26 @@ export function createOrbScene(container: HTMLElement): OrbScene {
     lastFrame = now;
     const elapsed = (now - startTime) / 1000;
 
-    if (pendingSettleTarget !== null && now >= burstEndTime) {
-      currentTarget = pendingSettleTarget;
-      pendingSettleTarget = null;
-    }
-
     stateUniform += (currentTarget - stateUniform) * (1 - Math.exp(-dt / ORB_CONFIG.lerpTau));
+
+    const wIdle = Math.max(0, Math.min(1, 1 - Math.abs(stateUniform - 0)));
+    const wCons = Math.max(0, Math.min(1, 1 - Math.abs(stateUniform - 1)));
+    const wSubc = Math.max(0, Math.min(1, 1 - Math.abs(stateUniform - 2)));
+    const s = ORB_CONFIG.states;
+    const orbitSpeed  = s.idle.orbitSpeed  * wIdle + s.conscious.orbitSpeed  * wCons + s.subconscious.orbitSpeed  * wSubc;
+    const noiseSpeed  = s.idle.noiseSpeed  * wIdle + s.conscious.noiseSpeed  * wCons + s.subconscious.noiseSpeed  * wSubc;
+    const breathFreq  = s.idle.breathFreq  * wIdle + s.conscious.breathFreq  * wCons + s.subconscious.breathFreq  * wSubc;
+    orbitAngle   += dt * orbitSpeed;
+    noisePhase   += dt * noiseSpeed;
+    breathPhase  += dt * breathFreq;
+    attractPhase += dt * ORB_CONFIG.attract.speed;
 
     material.uniforms.uTime.value = elapsed;
     material.uniforms.uState.value = stateUniform;
+    material.uniforms.uOrbitAngle.value = orbitAngle;
+    material.uniforms.uNoisePhase.value = noisePhase;
+    material.uniforms.uBreathPhase.value = breathPhase;
+    material.uniforms.uAttractPhase.value = attractPhase;
 
     const camAngle = elapsed * ORB_CONFIG.cameraOrbitSpeed;
     camera.position.x = Math.sin(camAngle) * ORB_CONFIG.cameraDistance;
