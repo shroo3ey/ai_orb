@@ -9,10 +9,11 @@ export interface StateMotion {
 
 export interface OrbConfig {
   particleCount: number;
+  orbRadius: number;         // physical radius of the particle sphere (world units)
   pointSizeBase: number;     // base pixel size multiplier (uSize uniform)
   pointSizeScale: number;    // perspective scale (K in K/viewDist); raise for bigger particles
   alphaAttenuation: number;  // multiplied into final fragment alpha; lower = more translucent
-  cameraDistance: number;    // camera orbit radius (world units)
+  cameraDistance: number;    // camera orbit radius (world units); MUST be > orbRadius
   cameraOrbitSpeed: number;  // rad/sec, camera auto-rotation
   burstDurationMs: number;   // hold-time on state 3 during auto-transitions
   lerpTau: number;           // uState lerp time constant (seconds) — ~3× tau to fully settle
@@ -31,11 +32,12 @@ export interface OrbConfig {
 
 export const ORB_CONFIG: OrbConfig = {
   particleCount: 8000,
+  orbRadius: 0.4,
   pointSizeBase: 1.0,
-  pointSizeScale: 7.0,
-  alphaAttenuation: 0.35,
+  pointSizeScale: 3.0,
+  alphaAttenuation: 1,
 
-  cameraDistance: 3.0,
+  cameraDistance: 1.0,
   cameraOrbitSpeed: 0.05,
 
   burstDurationMs: 700,
@@ -48,9 +50,9 @@ export const ORB_CONFIG: OrbConfig = {
   },
 
   states: {
-    idle:          { orbitSpeed: 0.02, turbAmp: 0.015, noiseFreq: 1.0, noiseSpeed: 0.3, breathFreq: 0.8, breathAmp: 0.03 },
-    conscious:     { orbitSpeed: 0.15, turbAmp: 0.05,  noiseFreq: 1.8, noiseSpeed: 0.6, breathFreq: 2.5, breathAmp: 0.04 },
-    subconscious:  { orbitSpeed: 0.06, turbAmp: 0.12,  noiseFreq: 0.6, noiseSpeed: 0.2, breathFreq: 0.5, breathAmp: 0.08 },
-    transitioning: { orbitSpeed: 0.05, turbAmp: 0.06,  noiseFreq: 1.2, noiseSpeed: 0.25, breathFreq: 0,  breathAmp: 0.10 },
+    idle:          { orbitSpeed: 0.02, turbAmp: 0.015, noiseFreq: 1.0, noiseSpeed: 0.3,  breathFreq: 0.8, breathAmp: 0.03 },
+    conscious:     { orbitSpeed: 0.15, turbAmp: 0.05,  noiseFreq: 1.8, noiseSpeed: 0.6,  breathFreq: 2.5, breathAmp: 0.04 },
+    subconscious:  { orbitSpeed: 0.06, turbAmp: 0.12,  noiseFreq: 0.6, noiseSpeed: 0.2,  breathFreq: 0.5, breathAmp: 0.08 },
+    transitioning: { orbitSpeed: 0.04, turbAmp: 0.02,  noiseFreq: 1.0, noiseSpeed: 0.1,  breathFreq: 0,   breathAmp: 0.03 },
   },
 };

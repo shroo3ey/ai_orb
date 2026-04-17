@@ -5,7 +5,7 @@ import { ORB_CONFIG, type StateMotion } from './config';
 
 export type OrbState = 'idle' | 'conscious' | 'subconscious' | 'transitioning';
 
-export function createOrbGeometry(count: number): THREE.BufferGeometry {
+export function createOrbGeometry(count: number, radius: number): THREE.BufferGeometry {
   const geometry = new THREE.BufferGeometry();
   const positions = new Float32Array(count * 3);
   const seeds = new Float32Array(count);
@@ -20,7 +20,7 @@ export function createOrbGeometry(count: number): THREE.BufferGeometry {
 
     const offsetRand = Math.random();
     const offset = Math.pow(offsetRand, 2) * 0.2 - 0.15;
-    const r = 1.0 + offset;
+    const r = radius * (1.0 + offset);
 
     positions[i * 3 + 0] = r * Math.sin(phi) * Math.cos(theta);
     positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
@@ -53,6 +53,8 @@ export function createOrbMaterial(pixelRatio: number): THREE.ShaderMaterial {
       uSize: { value: ORB_CONFIG.pointSizeBase },
       uPointSizeScale: { value: ORB_CONFIG.pointSizeScale },
       uAlphaAttenuation: { value: ORB_CONFIG.alphaAttenuation },
+      uOrbRadius: { value: ORB_CONFIG.orbRadius },
+      uCamDist: { value: ORB_CONFIG.cameraDistance },
       uColorBase: { value: new THREE.Color(ORB_CONFIG.colors.base) },
       uColorConscious: { value: new THREE.Color(ORB_CONFIG.colors.conscious) },
       uColorSubconscious: { value: new THREE.Color(ORB_CONFIG.colors.subconscious) },
@@ -101,7 +103,7 @@ export function createOrbScene(container: HTMLElement): OrbScene {
   renderer.setSize(width, height);
   container.appendChild(renderer.domElement);
 
-  const geometry = createOrbGeometry(ORB_CONFIG.particleCount);
+  const geometry = createOrbGeometry(ORB_CONFIG.particleCount, ORB_CONFIG.orbRadius);
   const material = createOrbMaterial(pixelRatio);
   const points = new THREE.Points(geometry, material);
   scene.add(points);

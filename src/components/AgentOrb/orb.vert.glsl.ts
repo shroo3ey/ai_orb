@@ -12,6 +12,8 @@ uniform float uState;
 uniform float uPixelRatio;
 uniform float uSize;
 uniform float uPointSizeScale;
+uniform float uOrbRadius;
+uniform float uCamDist;
 
 // Packed state parameters: .x=idle, .y=conscious, .z=subconscious, .w=transitioning
 uniform vec4 uOrbitSpeeds;
@@ -63,7 +65,10 @@ void main() {
   gl_Position = projectionMatrix * mvPosition;
 
   float viewDist = -mvPosition.z;
-  vDepth = clamp(1.0 - (viewDist - 2.0) / 2.0, 0.0, 1.0);
+  // vDepth: 1 at front of sphere (viewDist = camDist - radius), 0 at back (camDist + radius).
+  float near = uCamDist - uOrbRadius;
+  float span = max(2.0 * uOrbRadius, 0.001);
+  vDepth = clamp(1.0 - (viewDist - near) / span, 0.0, 1.0);
 
   gl_PointSize = uSize * uPixelRatio * (0.6 + aSeed * 0.8) * (uPointSizeScale / max(viewDist, 0.001));
 
