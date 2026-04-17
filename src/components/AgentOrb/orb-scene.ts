@@ -44,7 +44,7 @@ export function createOrbMaterial(pixelRatio: number): THREE.ShaderMaterial {
       uTime: { value: 0 },
       uState: { value: 0 },
       uPixelRatio: { value: pixelRatio },
-      uSize: { value: 2.0 },
+      uSize: { value: 1.0 },
       uColorBase: { value: new THREE.Color(0xffffff) },
       uColorConscious: { value: new THREE.Color(0xb8d8c9) },
       uColorSubconscious: { value: new THREE.Color(0xc8c4dd) },

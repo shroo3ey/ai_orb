@@ -25,6 +25,6 @@ void main() {
             + mix(uColorBase, uColorSubconscious, brightness) * wSubc
             + uColorBase * wTran;
 
-  gl_FragColor = vec4(tint, alpha * vEdgeFade * brightness);
+  gl_FragColor = vec4(tint, alpha * vEdgeFade * brightness * 0.35);
 }
 `;

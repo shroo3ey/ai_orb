@@ -54,7 +54,7 @@ void main() {
   float viewDist = -mvPosition.z;
   vDepth = clamp(1.0 - (viewDist - 2.0) / 2.0, 0.0, 1.0);
 
-  gl_PointSize = uSize * uPixelRatio * (0.6 + aSeed * 0.8) * (300.0 / max(viewDist, 0.001));
+  gl_PointSize = uSize * uPixelRatio * (0.6 + aSeed * 0.8) * (2.0 / max(viewDist, 0.001));
 
   vEdgeFade = smoothstep(0.20, 0.02, abs(aRadialOffset));
   vSeed = aSeed;
