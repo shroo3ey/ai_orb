@@ -23,6 +23,10 @@ export interface OrbConfig {
     strength: number;        // displacement magnitude (world units per frame)
   };
   axisVariance: number;      // per-particle rotation-axis wobble; 0 = all particles share Y axis, 1 = fully random directions
+  pulse: {
+    amplitude: number;       // peak extra radius as fraction of orb (e.g. 0.25 = +25%)
+    duration: number;        // total pulse duration in seconds
+  };
   colors: {
     base: number;            // hex — dominant particle color (dim particles)
     conscious: number;       // hex — tint for bright particles in conscious state
@@ -55,6 +59,11 @@ export const ORB_CONFIG: OrbConfig = {
   },
 
   axisVariance: 0.05,
+
+  pulse: {
+    amplitude: 0.25,
+    duration: 0.7,
+  },
 
   colors: {
     base:         0xffffff,
