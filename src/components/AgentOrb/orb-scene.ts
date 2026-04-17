@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { VERTEX_SHADER } from './orb.vert.glsl';
 import { FRAGMENT_SHADER } from './orb.frag.glsl';
+import { ORB_CONFIG, type StateMotion } from './config';
 
 export type OrbState = 'idle' | 'conscious' | 'subconscious' | 'transitioning';
 
@@ -38,16 +39,29 @@ export function createOrbGeometry(count: number): THREE.BufferGeometry {
   return geometry;
 }
 
+function stateVec4(pick: (s: StateMotion) => number): THREE.Vector4 {
+  const s = ORB_CONFIG.states;
+  return new THREE.Vector4(pick(s.idle), pick(s.conscious), pick(s.subconscious), pick(s.transitioning));
+}
+
 export function createOrbMaterial(pixelRatio: number): THREE.ShaderMaterial {
   return new THREE.ShaderMaterial({
     uniforms: {
       uTime: { value: 0 },
       uState: { value: 0 },
       uPixelRatio: { value: pixelRatio },
-      uSize: { value: 1.0 },
-      uColorBase: { value: new THREE.Color(0xffffff) },
-      uColorConscious: { value: new THREE.Color(0xb8d8c9) },
-      uColorSubconscious: { value: new THREE.Color(0xc8c4dd) },
+      uSize: { value: ORB_CONFIG.pointSizeBase },
+      uPointSizeScale: { value: ORB_CONFIG.pointSizeScale },
+      uAlphaAttenuation: { value: ORB_CONFIG.alphaAttenuation },
+      uColorBase: { value: new THREE.Color(ORB_CONFIG.colors.base) },
+      uColorConscious: { value: new THREE.Color(ORB_CONFIG.colors.conscious) },
+      uColorSubconscious: { value: new THREE.Color(ORB_CONFIG.colors.subconscious) },
+      uOrbitSpeeds: { value: stateVec4((s) => s.orbitSpeed) },
+      uTurbAmps: { value: stateVec4((s) => s.turbAmp) },
+      uNoiseFreqs: { value: stateVec4((s) => s.noiseFreq) },
+      uNoiseSpeeds: { value: stateVec4((s) => s.noiseSpeed) },
+      uBreathFreqs: { value: stateVec4((s) => s.breathFreq) },
+      uBreathAmps: { value: stateVec4((s) => s.breathAmp) },
     },
     vertexShader: VERTEX_SHADER,
     fragmentShader: FRAGMENT_SHADER,
@@ -65,10 +79,6 @@ const STATE_TARGET: Record<OrbState, number> = {
   transitioning: 3,
 };
 
-const BURST_DURATION_MS = 700;
-const LERP_TAU = 0.45;
-const PARTICLE_COUNT = 8000;
-
 export interface OrbScene {
   setState: (state: OrbState) => void;
   resize: (width: number, height: number) => void;
@@ -81,7 +91,7 @@ export function createOrbScene(container: HTMLElement): OrbScene {
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
-  camera.position.set(0, 0, 3);
+  camera.position.set(0, 0, ORB_CONFIG.cameraDistance);
   camera.lookAt(0, 0, 0);
 
   const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: false });
@@ -91,7 +101,7 @@ export function createOrbScene(container: HTMLElement): OrbScene {
   renderer.setSize(width, height);
   container.appendChild(renderer.domElement);
 
-  const geometry = createOrbGeometry(PARTICLE_COUNT);
+  const geometry = createOrbGeometry(ORB_CONFIG.particleCount);
   const material = createOrbMaterial(pixelRatio);
   const points = new THREE.Points(geometry, material);
   scene.add(points);
@@ -119,7 +129,7 @@ export function createOrbScene(container: HTMLElement): OrbScene {
 
     if (prev !== 'transitioning') {
       currentTarget = 3;
-      burstEndTime = performance.now() + BURST_DURATION_MS;
+      burstEndTime = performance.now() + ORB_CONFIG.burstDurationMs;
       pendingSettleTarget = STATE_TARGET[next];
     } else {
       currentTarget = STATE_TARGET[next];
@@ -139,14 +149,14 @@ export function createOrbScene(container: HTMLElement): OrbScene {
       pendingSettleTarget = null;
     }
 
-    stateUniform += (currentTarget - stateUniform) * (1 - Math.exp(-dt / LERP_TAU));
+    stateUniform += (currentTarget - stateUniform) * (1 - Math.exp(-dt / ORB_CONFIG.lerpTau));
 
     material.uniforms.uTime.value = elapsed;
     material.uniforms.uState.value = stateUniform;
 
-    const camAngle = elapsed * 0.05;
-    camera.position.x = Math.sin(camAngle) * 3;
-    camera.position.z = Math.cos(camAngle) * 3;
+    const camAngle = elapsed * ORB_CONFIG.cameraOrbitSpeed;
+    camera.position.x = Math.sin(camAngle) * ORB_CONFIG.cameraDistance;
+    camera.position.z = Math.cos(camAngle) * ORB_CONFIG.cameraDistance;
     camera.lookAt(0, 0, 0);
 
     renderer.render(scene, camera);
