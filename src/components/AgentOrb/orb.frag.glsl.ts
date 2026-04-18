@@ -3,7 +3,6 @@ uniform float uState;
 uniform float uAlphaAttenuation;
 uniform vec3 uColorBase;
 uniform vec3 uColorConscious;
-uniform vec3 uColorSubconscious;
 
 varying float vSeed;
 varying float vDepth;
@@ -18,11 +17,9 @@ void main() {
 
   float wIdle = clamp(1.0 - abs(uState - 0.0), 0.0, 1.0);
   float wCons = clamp(1.0 - abs(uState - 1.0), 0.0, 1.0);
-  float wSubc = clamp(1.0 - abs(uState - 2.0), 0.0, 1.0);
 
   vec3 tint = uColorBase * wIdle
-            + mix(uColorBase, uColorConscious, brightness) * wCons
-            + mix(uColorBase, uColorSubconscious, brightness) * wSubc;
+            + mix(uColorBase, uColorConscious, brightness) * wCons;
 
   gl_FragColor = vec4(tint, alpha * vEdgeFade * brightness * uAlphaAttenuation);
 }

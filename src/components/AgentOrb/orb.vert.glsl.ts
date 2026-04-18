@@ -25,14 +25,19 @@ uniform float uAttractPhase;
 // Attractor (clumping) field parameters — global, not per-state.
 uniform float uAttractFreq;
 uniform float uAttractStrength;
+uniform float uAttractExponent;
+uniform float uAttractDeadzone;
+uniform float uAttractMaxStep;
+uniform float uCenterPull;
+uniform float uCenterPullFalloff;
 
 // Per-particle rotation-axis wobble amount; 0 = all share Y axis, 1 = fully noise-driven.
 uniform float uAxisVariance;
 
-// Packed state parameters: .x=idle, .y=conscious, .z=subconscious
-uniform vec3 uTurbAmps;
-uniform vec3 uNoiseFreqs;
-uniform vec3 uBreathAmps;
+// Packed state parameters: .x=idle, .y=conscious
+uniform vec2 uTurbAmps;
+uniform vec2 uNoiseFreqs;
+uniform vec2 uBreathAmps;
 
 varying float vSeed;
 varying float vDepth;
@@ -49,8 +54,7 @@ vec3 rotateAxis(vec3 p, vec3 axis, float a) {
 void main() {
   float wIdle = clamp(1.0 - abs(uState - 0.0), 0.0, 1.0);
   float wCons = clamp(1.0 - abs(uState - 1.0), 0.0, 1.0);
-  float wSubc = clamp(1.0 - abs(uState - 2.0), 0.0, 1.0);
-  vec3 w = vec3(wIdle, wCons, wSubc);
+  vec2 w = vec2(wIdle, wCons);
 
   float turbAmp    = dot(uTurbAmps, w);
   float noiseFreq  = dot(uNoiseFreqs, w);
@@ -82,7 +86,31 @@ void main() {
   // Neighbors near a peak get pulled the same direction → clumps form.
   // Peaks drift over time (uAttractPhase) → clumps break and reform elsewhere.
   vec3 attractPos = p * uAttractFreq + vec3(uAttractPhase);
-  p += gradNoise(attractPos) * uAttractStrength;
+  vec3 attractForce = gradNoise(attractPos);
+  float attractMag = length(attractForce);
+  if (attractMag > 0.00001) {
+    float curvedMag = pow(attractMag, max(uAttractExponent, 0.00001));
+    attractForce *= curvedMag / attractMag;
+  }
+
+  float deadzoneStart = max(uAttractDeadzone, 0.0);
+  float deadzoneEnd = deadzoneStart + 0.25;
+  float deadzoneWeight = smoothstep(deadzoneStart, deadzoneEnd, attractMag);
+  vec3 attractStep = attractForce * (uAttractStrength * deadzoneWeight);
+
+  float maxStep = max(uAttractMaxStep, 0.00001);
+  float attractStepLen = length(attractStep);
+  if (attractStepLen > maxStep) {
+    attractStep *= maxStep / attractStepLen;
+  }
+  p += attractStep;
+
+  if (uCenterPull > 0.0) {
+    float radial = length(p) / max(uOrbRadius, 0.00001);
+    float radialWeight = pow(max(radial, 0.0), max(uCenterPullFalloff, 0.00001));
+    vec3 toCenter = -normalize(p);
+    p += toCenter * (uCenterPull * radialWeight);
+  }
 
   p *= (1.0 + breath);
 

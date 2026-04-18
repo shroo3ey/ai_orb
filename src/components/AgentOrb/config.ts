@@ -21,6 +21,11 @@ export interface OrbConfig {
     freq: number;            // spatial frequency of the attractor density field
     speed: number;           // how fast attractor peaks drift through space (noise phase advance rate)
     strength: number;        // displacement magnitude (world units per frame)
+    exponent: number;        // non-linear response curve for attractor force (1 = linear)
+    deadzone: number;        // suppress weak attractor force below this magnitude
+    maxStep: number;         // per-frame cap on attractor displacement (world units)
+    centerPull: number;      // direct inward pull toward center (world units per frame)
+    centerFalloff: number;   // radial scaling for center pull (1 = linear with radius)
   };
   axisVariance: number;      // per-particle rotation-axis wobble; 0 = all particles share Y axis, 1 = fully random directions
   pulse: {
@@ -30,35 +35,38 @@ export interface OrbConfig {
   colors: {
     base: number;            // hex — dominant particle color (dim particles)
     conscious: number;       // hex — tint for bright particles in conscious state
-    subconscious: number;    // hex — tint for bright particles in subconscious state
   };
   states: {
     idle: StateMotion;
     conscious: StateMotion;
-    subconscious: StateMotion;
   };
 }
 
 export const ORB_CONFIG: OrbConfig = {
-  particleCount: 8000,
-  orbRadius: 0.2,
-  radialJitter: 0.02,
+  particleCount: 12700,
+  orbRadius: 0.15,
+  radialJitter: 0,
   pointSizeBase: 1.0,
-  pointSizeScale: 3.0,
-  alphaAttenuation: 1,
+  pointSizeScale: 2.0,
+  alphaAttenuation: 5,
 
-  cameraDistance: 1.0,
-  cameraOrbitSpeed: 0.5,
+  cameraDistance: 0.98,
+  cameraOrbitSpeed: 0.3,
 
   lerpTau: 0.05,
 
   attract: {
-    freq: 10.0,
-    speed: 0.15,
-    strength: 0.01,
+    freq: 8.7,
+    speed: -0.26,
+    strength: 10.87,
+    exponent: 1.0,
+    deadzone: 0.0,
+    maxStep: 0.02,
+    centerPull: 0.0,
+    centerFalloff: 0.0,
   },
 
-  axisVariance: 0.05,
+  axisVariance: 0,
 
   pulse: {
     amplitude: 0.25,
@@ -66,14 +74,12 @@ export const ORB_CONFIG: OrbConfig = {
   },
 
   colors: {
-    base:         0xffffff,
-    conscious:    0xefa61e,
-    subconscious: 0xc8c4dd,
+    base:      0xffffff,
+    conscious: 0xefa61e,
   },
 
   states: {
-    idle:          { orbitSpeed: 0.0, turbAmp: 0.0, noiseFreq: 0.0, noiseSpeed: 0.0, breathFreq: 3, breathAmp: 0.1 },
-    conscious:     { orbitSpeed: 0.05, turbAmp: 0.0,  noiseFreq: 0.0, noiseSpeed: 0.0, breathFreq: 0.0, breathAmp: 0.1 },
-    subconscious:  { orbitSpeed: 0.1, turbAmp: 0.0,  noiseFreq: 0.0, noiseSpeed: 0.0, breathFreq: 0.0, breathAmp: 0.00 },
+    idle:      { orbitSpeed: -0.016, turbAmp: 0.0, noiseFreq: 0.0, noiseSpeed: 0.0, breathFreq: 0, breathAmp: 0.0 },
+    conscious: { orbitSpeed: 0.03, turbAmp: 0.0, noiseFreq: 0.0, noiseSpeed: 0.0, breathFreq: 0, breathAmp: 0.06 },
   },
 };

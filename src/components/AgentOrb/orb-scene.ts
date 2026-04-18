@@ -3,7 +3,7 @@ import { VERTEX_SHADER } from './orb.vert.glsl';
 import { FRAGMENT_SHADER } from './orb.frag.glsl';
 import { ORB_CONFIG, type StateMotion } from './config';
 
-export type OrbState = 'idle' | 'conscious' | 'subconscious';
+export type OrbState = 'idle' | 'conscious';
 
 export function createOrbGeometry(count: number, radius: number, radialJitter: number): THREE.BufferGeometry {
   const geometry = new THREE.BufferGeometry();
@@ -38,9 +38,9 @@ export function createOrbGeometry(count: number, radius: number, radialJitter: n
   return geometry;
 }
 
-function stateVec3(pick: (s: StateMotion) => number): THREE.Vector3 {
+function stateVec2(pick: (s: StateMotion) => number): THREE.Vector2 {
   const s = ORB_CONFIG.states;
-  return new THREE.Vector3(pick(s.idle), pick(s.conscious), pick(s.subconscious));
+  return new THREE.Vector2(pick(s.idle), pick(s.conscious));
 }
 
 export function createOrbMaterial(pixelRatio: number): THREE.ShaderMaterial {
@@ -56,17 +56,21 @@ export function createOrbMaterial(pixelRatio: number): THREE.ShaderMaterial {
       uCamDist: { value: ORB_CONFIG.cameraDistance },
       uColorBase: { value: new THREE.Color(ORB_CONFIG.colors.base) },
       uColorConscious: { value: new THREE.Color(ORB_CONFIG.colors.conscious) },
-      uColorSubconscious: { value: new THREE.Color(ORB_CONFIG.colors.subconscious) },
       uOrbitAngle: { value: 0 },
       uNoisePhase: { value: 0 },
       uBreathPhase: { value: 0 },
       uAttractPhase: { value: 0 },
       uAttractFreq: { value: ORB_CONFIG.attract.freq },
       uAttractStrength: { value: ORB_CONFIG.attract.strength },
+      uAttractExponent: { value: ORB_CONFIG.attract.exponent },
+      uAttractDeadzone: { value: ORB_CONFIG.attract.deadzone },
+      uAttractMaxStep: { value: ORB_CONFIG.attract.maxStep },
+      uCenterPull: { value: ORB_CONFIG.attract.centerPull },
+      uCenterPullFalloff: { value: ORB_CONFIG.attract.centerFalloff },
       uAxisVariance: { value: ORB_CONFIG.axisVariance },
-      uTurbAmps: { value: stateVec3((s) => s.turbAmp) },
-      uNoiseFreqs: { value: stateVec3((s) => s.noiseFreq) },
-      uBreathAmps: { value: stateVec3((s) => s.breathAmp) },
+      uTurbAmps: { value: stateVec2((s) => s.turbAmp) },
+      uNoiseFreqs: { value: stateVec2((s) => s.noiseFreq) },
+      uBreathAmps: { value: stateVec2((s) => s.breathAmp) },
     },
     vertexShader: VERTEX_SHADER,
     fragmentShader: FRAGMENT_SHADER,
@@ -80,11 +84,11 @@ export function createOrbMaterial(pixelRatio: number): THREE.ShaderMaterial {
 const STATE_TARGET: Record<OrbState, number> = {
   idle: 0,
   conscious: 1,
-  subconscious: 2,
 };
 
 export interface OrbScene {
   setState: (state: OrbState) => void;
+  updateConfig: () => void;
   resize: (width: number, height: number) => void;
   dispose: () => void;
 }
@@ -105,10 +109,13 @@ export function createOrbScene(container: HTMLElement): OrbScene {
   renderer.setSize(width, height);
   container.appendChild(renderer.domElement);
 
-  const geometry = createOrbGeometry(ORB_CONFIG.particleCount, ORB_CONFIG.orbRadius, ORB_CONFIG.radialJitter);
+  let geometry = createOrbGeometry(ORB_CONFIG.particleCount, ORB_CONFIG.orbRadius, ORB_CONFIG.radialJitter);
   const material = createOrbMaterial(pixelRatio);
   const points = new THREE.Points(geometry, material);
   scene.add(points);
+
+  const geometryKey = () => `${ORB_CONFIG.particleCount}|${ORB_CONFIG.orbRadius}|${ORB_CONFIG.radialJitter}`;
+  let lastGeometryKey = geometryKey();
 
   let currentState: OrbState = 'idle';
   let currentTarget = 0;
@@ -128,6 +135,43 @@ export function createOrbScene(container: HTMLElement): OrbScene {
     currentTarget = STATE_TARGET[next];
   };
 
+  const updateConfig = () => {
+    const nextGeometryKey = geometryKey();
+    if (nextGeometryKey !== lastGeometryKey) {
+      const nextGeometry = createOrbGeometry(ORB_CONFIG.particleCount, ORB_CONFIG.orbRadius, ORB_CONFIG.radialJitter);
+      points.geometry = nextGeometry;
+      geometry.dispose();
+      geometry = nextGeometry;
+      lastGeometryKey = nextGeometryKey;
+    }
+
+    material.uniforms.uSize.value = ORB_CONFIG.pointSizeBase;
+    material.uniforms.uPointSizeScale.value = ORB_CONFIG.pointSizeScale;
+    material.uniforms.uAlphaAttenuation.value = ORB_CONFIG.alphaAttenuation;
+    material.uniforms.uOrbRadius.value = ORB_CONFIG.orbRadius;
+    material.uniforms.uCamDist.value = ORB_CONFIG.cameraDistance;
+
+    material.uniforms.uAttractFreq.value = ORB_CONFIG.attract.freq;
+    material.uniforms.uAttractStrength.value = ORB_CONFIG.attract.strength;
+    material.uniforms.uAttractExponent.value = ORB_CONFIG.attract.exponent;
+    material.uniforms.uAttractDeadzone.value = ORB_CONFIG.attract.deadzone;
+    material.uniforms.uAttractMaxStep.value = ORB_CONFIG.attract.maxStep;
+    material.uniforms.uCenterPull.value = ORB_CONFIG.attract.centerPull;
+    material.uniforms.uCenterPullFalloff.value = ORB_CONFIG.attract.centerFalloff;
+
+    material.uniforms.uAxisVariance.value = ORB_CONFIG.axisVariance;
+    material.uniforms.uTurbAmps.value.set(ORB_CONFIG.states.idle.turbAmp, ORB_CONFIG.states.conscious.turbAmp);
+    material.uniforms.uNoiseFreqs.value.set(ORB_CONFIG.states.idle.noiseFreq, ORB_CONFIG.states.conscious.noiseFreq);
+    material.uniforms.uBreathAmps.value.set(ORB_CONFIG.states.idle.breathAmp, ORB_CONFIG.states.conscious.breathAmp);
+
+    const colorBase = material.uniforms.uColorBase.value as THREE.Color;
+    const colorConscious = material.uniforms.uColorConscious.value as THREE.Color;
+    colorBase.setHex(ORB_CONFIG.colors.base);
+    colorConscious.setHex(ORB_CONFIG.colors.conscious);
+  };
+
+  updateConfig();
+
   const animate = () => {
     frameId = requestAnimationFrame(animate);
     const now = performance.now();
@@ -139,11 +183,10 @@ export function createOrbScene(container: HTMLElement): OrbScene {
 
     const wIdle = Math.max(0, Math.min(1, 1 - Math.abs(stateUniform - 0)));
     const wCons = Math.max(0, Math.min(1, 1 - Math.abs(stateUniform - 1)));
-    const wSubc = Math.max(0, Math.min(1, 1 - Math.abs(stateUniform - 2)));
     const s = ORB_CONFIG.states;
-    const orbitSpeed  = s.idle.orbitSpeed  * wIdle + s.conscious.orbitSpeed  * wCons + s.subconscious.orbitSpeed  * wSubc;
-    const noiseSpeed  = s.idle.noiseSpeed  * wIdle + s.conscious.noiseSpeed  * wCons + s.subconscious.noiseSpeed  * wSubc;
-    const breathFreq  = s.idle.breathFreq  * wIdle + s.conscious.breathFreq  * wCons + s.subconscious.breathFreq  * wSubc;
+    const orbitSpeed = s.idle.orbitSpeed * wIdle + s.conscious.orbitSpeed * wCons;
+    const noiseSpeed = s.idle.noiseSpeed * wIdle + s.conscious.noiseSpeed * wCons;
+    const breathFreq = s.idle.breathFreq * wIdle + s.conscious.breathFreq * wCons;
     orbitAngle   += dt * orbitSpeed;
     noisePhase   += dt * noiseSpeed;
     breathPhase  += dt * breathFreq;
@@ -181,5 +224,5 @@ export function createOrbScene(container: HTMLElement): OrbScene {
     }
   };
 
-  return { setState, resize, dispose };
+  return { setState, updateConfig, resize, dispose };
 }

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { AgentOrb, type OrbState } from '@/components/AgentOrb/AgentOrb';
 
-const STATES: OrbState[] = ['idle', 'conscious', 'subconscious'];
+const STATES: OrbState[] = ['idle', 'conscious'];
 
 export default function OrbDemoPage() {
   const [state, setState] = useState<OrbState>('idle');
