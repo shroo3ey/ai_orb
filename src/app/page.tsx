@@ -2,9 +2,6 @@
 
 import { useState } from 'react';
 import { StateOrb, type DashboardSnapshot } from '@/components/dashboard/state-orb';
-import type { OrbState } from '@/components/AgentOrb/AgentOrb';
-
-const CONDUCTOR_STATES = ['idle', 'conscious', 'subconscious'] as const;
 
 const MOCK_SNAPSHOTS: Record<string, DashboardSnapshot> = {
   idle: {

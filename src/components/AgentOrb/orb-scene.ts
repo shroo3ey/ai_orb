@@ -3,8 +3,6 @@ import { VERTEX_SHADER } from './orb.vert.glsl';
 import { FRAGMENT_SHADER } from './orb.frag.glsl';
 import { ORB_CONFIG } from './config';
 
-export type OrbState = 'idle' | 'conscious';
-
 export function createOrbGeometry(count: number, radius: number, radialJitter: number): THREE.BufferGeometry {
   const geometry = new THREE.BufferGeometry();
   const positions = new Float32Array(count * 3);
@@ -38,14 +36,13 @@ export function createOrbGeometry(count: number, radius: number, radialJitter: n
 export function createOrbMaterial(pixelRatio: number): THREE.ShaderMaterial {
   return new THREE.ShaderMaterial({
     uniforms: {
-      uState: { value: 0 },
       uPixelRatio: { value: pixelRatio },
       uParticleSize: { value: ORB_CONFIG.particleSize },
       uAlphaAttenuation: { value: ORB_CONFIG.alphaAttenuation },
       uOrbRadius: { value: ORB_CONFIG.orbRadius },
       uCamDist: { value: ORB_CONFIG.cameraDistance },
-      uColorBase: { value: new THREE.Color(ORB_CONFIG.colors.base) },
-      uColorConscious: { value: new THREE.Color(ORB_CONFIG.colors.conscious) },
+      uColorBase: { value: new THREE.Color(0xffffff) },
+      uColorConscious: { value: new THREE.Color(0xffffff) },
       uBreathAmp: { value: 0 },
       uBreathPhase: { value: 0 },
       uAttractPhase: { value: 0 },
@@ -61,13 +58,7 @@ export function createOrbMaterial(pixelRatio: number): THREE.ShaderMaterial {
   });
 }
 
-const STATE_TARGET: Record<OrbState, number> = {
-  idle: 0,
-  conscious: 1,
-};
-
 export interface OrbScene {
-  setState: (state: OrbState) => void;
   updateConfig: () => void;
   setColors: (base: number, conscious: number) => void;
   setColorLerpTau: (tau: number) => void;
@@ -103,12 +94,9 @@ export function createOrbScene(container: HTMLElement): OrbScene {
   let colorLerpTau = 0.9;
   const SMOOTH_LERP_TAU = 0.9;
 
-  let targetColorBase = new THREE.Color(ORB_CONFIG.colors.base);
-  let targetColorConscious = new THREE.Color(ORB_CONFIG.colors.conscious);
+  let targetColorBase = new THREE.Color(0xffffff);
+  let targetColorConscious = new THREE.Color(0xffffff);
 
-  let currentState: OrbState = 'idle';
-  let currentTarget = 0;
-  let stateUniform = 0;
   let breathPhase = 0;
   let attractPhase = 0;
   let camOrbitAngle = 0;
@@ -125,12 +113,6 @@ export function createOrbScene(container: HTMLElement): OrbScene {
 
   let lastFrame = performance.now();
   let frameId = 0;
-
-  const setState = (next: OrbState) => {
-    if (next === currentState) return;
-    currentState = next;
-    currentTarget = STATE_TARGET[next];
-  };
 
   const setBreath = (freq: number, amp: number) => {
     targetBreathFreq = freq;
@@ -162,9 +144,6 @@ export function createOrbScene(container: HTMLElement): OrbScene {
     const dt = Math.min((now - lastFrame) / 1000, 0.1);
     lastFrame = now;
 
-    // State lerp
-    stateUniform += (currentTarget - stateUniform) * (1 - Math.exp(-dt / 0.05));
-
     // Smooth live-config scalars
     const smoothAlpha = 1 - Math.exp(-dt / SMOOTH_LERP_TAU);
     smoothAttractSpeed += (ORB_CONFIG.attract.speed - smoothAttractSpeed) * smoothAlpha;
@@ -182,7 +161,6 @@ export function createOrbScene(container: HTMLElement): OrbScene {
     (material.uniforms.uColorBase.value as THREE.Color).lerp(targetColorBase, colorAlpha);
     (material.uniforms.uColorConscious.value as THREE.Color).lerp(targetColorConscious, colorAlpha);
 
-    material.uniforms.uState.value = stateUniform;
     material.uniforms.uBreathAmp.value = smoothBreathAmp;
     material.uniforms.uBreathPhase.value = breathPhase;
     material.uniforms.uAttractPhase.value = attractPhase;
@@ -221,5 +199,5 @@ export function createOrbScene(container: HTMLElement): OrbScene {
     colorLerpTau = Math.max(0.05, tau);
   };
 
-  return { setState, updateConfig, setColors, setColorLerpTau, setBreath, resize, dispose };
+  return { updateConfig, setColors, setColorLerpTau, setBreath, resize, dispose };
 }

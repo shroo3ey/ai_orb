@@ -2,10 +2,8 @@
 
 import { useEffect, useRef } from 'react';
 import { Pane, type FolderApi } from 'tweakpane';
-import { createOrbScene, type OrbState } from './orb-scene';
+import { createOrbScene } from './orb-scene';
 import { ORB_CONFIG } from './config';
-
-export type { OrbState };
 
 export interface OrbLiveConfig {
   attractSpeed?: number;
@@ -22,7 +20,6 @@ export interface OrbLiveConfig {
 }
 
 interface AgentOrbProps {
-  state: OrbState;
   liveConfig?: OrbLiveConfig;
 }
 
@@ -46,26 +43,11 @@ const NUMERIC_BINDINGS: Record<string, NumericBinding> = {
   'attract.maxStep': { min: 0, max: 0.1, step: 0.001 },
 };
 
-function colorToHexString(color: number): string {
-  return `#${color.toString(16).padStart(6, '0')}`;
-}
-
 function bindObject(folder: FolderApi, source: Record<string, unknown>, path: string[], onChange: () => void): void {
   for (const key of Object.keys(source)) {
     const nextPath = [...path, key];
     const pathKey = nextPath.join('.');
     const value = source[key];
-
-    if (pathKey === 'colors.base' || pathKey === 'colors.conscious') {
-      const colorModel = { value: colorToHexString(value as number) };
-      const colorBinding = folder.addBinding(colorModel, 'value', { view: 'color' });
-      colorBinding.label = key;
-      colorBinding.on('change', (event: { value: string }) => {
-        source[key] = parseInt(event.value.slice(1), 16);
-        onChange();
-      });
-      continue;
-    }
 
     if (typeof value === 'number') {
       const options = NUMERIC_BINDINGS[pathKey] ?? {};
@@ -81,7 +63,7 @@ function bindObject(folder: FolderApi, source: Record<string, unknown>, path: st
   }
 }
 
-export function AgentOrb({ state, liveConfig }: AgentOrbProps) {
+export function AgentOrb({ liveConfig }: AgentOrbProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const paneHostRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<ReturnType<typeof createOrbScene> | null>(null);
@@ -120,26 +102,16 @@ export function AgentOrb({ state, liveConfig }: AgentOrbProps) {
   }, []);
 
   useEffect(() => {
-    sceneRef.current?.setState(state);
-  }, [state]);
-
-  useEffect(() => {
     if (!liveConfig) return;
     if (liveConfig.attractSpeed !== undefined) ORB_CONFIG.attract.speed = liveConfig.attractSpeed;
     if (liveConfig.attractFreq !== undefined) ORB_CONFIG.attract.freq = liveConfig.attractFreq;
     if (liveConfig.cameraOrbitSpeed !== undefined) ORB_CONFIG.cameraOrbitSpeed = liveConfig.cameraOrbitSpeed;
     sceneRef.current?.updateConfig();
-    if (liveConfig.breathFreq !== undefined || liveConfig.breathAmp !== undefined) {
-      sceneRef.current?.setBreath(liveConfig.breathFreq ?? 0, liveConfig.breathAmp ?? 0);
-    }
+    sceneRef.current?.setBreath(liveConfig.breathFreq ?? 0, liveConfig.breathAmp ?? 0);
     if (liveConfig.colorLerpTau !== undefined) {
       sceneRef.current?.setColorLerpTau(liveConfig.colorLerpTau);
     }
-    if (liveConfig.baseColor !== undefined || liveConfig.consciousColor !== undefined) {
-      const base = liveConfig.baseColor ?? ORB_CONFIG.colors.base;
-      const conscious = liveConfig.consciousColor ?? ORB_CONFIG.colors.conscious;
-      sceneRef.current?.setColors(base, conscious);
-    }
+    sceneRef.current?.setColors(liveConfig.baseColor ?? 0xffffff, liveConfig.consciousColor ?? 0xffffff);
   }, [liveConfig]);
 
   return (

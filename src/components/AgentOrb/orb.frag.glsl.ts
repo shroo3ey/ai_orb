@@ -1,5 +1,4 @@
 export const FRAGMENT_SHADER = /* glsl */ `
-uniform float uState;
 uniform float uAlphaAttenuation;
 uniform vec3 uColorBase;
 uniform vec3 uColorConscious;
@@ -15,11 +14,7 @@ void main() {
 
   float brightness = vDepth * (0.5 + vSeed * 0.5);
 
-  float wIdle = clamp(1.0 - abs(uState - 0.0), 0.0, 1.0);
-  float wCons = clamp(1.0 - abs(uState - 1.0), 0.0, 1.0);
-
-  vec3 tint = uColorBase * wIdle
-            + mix(uColorBase, uColorConscious, brightness) * wCons;
+  vec3 tint = mix(uColorBase, uColorConscious, brightness);
 
   gl_FragColor = vec4(tint, alpha * vEdgeFade * brightness * uAlphaAttenuation);
 }

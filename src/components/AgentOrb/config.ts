@@ -11,10 +11,6 @@ export interface OrbConfig {
     speed: number;           // how fast attractor peaks drift through space
     maxStep: number;         // per-frame cap on attractor displacement (0–0.1)
   };
-  colors: {
-    base: number;            // hex — dominant particle color (dim particles)
-    conscious: number;       // hex — tint for bright particles in conscious state
-  };
 }
 
 export const ORB_CONFIG: OrbConfig = {
@@ -31,10 +27,5 @@ export const ORB_CONFIG: OrbConfig = {
     freq: 8.7,
     speed: -0.26,
     maxStep: 0.02,
-  },
-
-  colors: {
-    base:      0xffffff,
-    conscious: 0xefa61e,
   },
 };

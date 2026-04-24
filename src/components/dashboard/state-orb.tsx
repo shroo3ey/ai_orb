@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { AgentOrb, type OrbLiveConfig, type OrbState } from "@/components/AgentOrb/AgentOrb";
+import { AgentOrb, type OrbLiveConfig } from "@/components/AgentOrb/AgentOrb";
 
 // Colors
 const COLOR_WHITE   = 0xffffff; // idle
@@ -25,94 +25,78 @@ export interface DashboardSnapshot {
   queue: { channels: Array<{ queueDepth: number }> };
 }
 
-function computeLiveConfig(snap: DashboardSnapshot): OrbLiveConfig {
-  const { conductor, llm, tools, queue } = snap;
-
-  if (conductor.state === "idle") {
-    return {
-      attractSpeed: BASE_ATTRACT_SPEED,
-      attractFreq: BASE_ATTRACT_FREQ,
-      cameraOrbitSpeed: BASE_CAMERA_ORBIT_SPEED,
-      breathAmp: 0,
-      breathFreq: 0,
-      baseColor: COLOR_WHITE,
-      consciousColor: COLOR_WHITE,
-      colorLerpTau: COLOR_TAU_DEFAULT,
-    };
-  }
-
-  const llmActive = llm?.inFlight ?? false;
-  const toolRunning = tools.running !== null;
-  const queueBusy = queue.channels.some((c) => c.queueDepth > 0);
-
-  // Stack activity signals
-  let attractSpeed = BASE_ATTRACT_SPEED;
-  let cameraOrbitSpeed = 0.4;
-  let breathAmp = 0.06;
-  let breathFreq = 0;
-  let attractFreq = queueBusy ? 11 : BASE_ATTRACT_FREQ;
-  let baseColor = COLOR_WHITE;
-  let consciousColor = COLOR_GOLD;
-  let colorLerpTau = COLOR_TAU_DEFAULT;
-
-  if (llmActive) {
-    attractSpeed = -0.45;
-    breathAmp = 0.1;
-    breathFreq = 2;
-    consciousColor = COLOR_GOLD;
-  }
-
-  if (toolRunning) {
-    attractSpeed = -0.6;
-    cameraOrbitSpeed = 0.7;
-    breathAmp = 0.13;
-    breathFreq = 3;
-    consciousColor = COLOR_ORANGE;
-  }
-
-  if (conductor.state === "subconscious") {
-    attractSpeed = -0.15;
-    cameraOrbitSpeed = 0.15;
-    breathAmp = 0.04;
-    breathFreq = 0.5;
-    baseColor = COLOR_INDIGO;
-    consciousColor = COLOR_INDIGO;
-    colorLerpTau = COLOR_TAU_SUBCONSCIOUS;
-  }
-
-  return {
-    attractSpeed,
-    attractFreq,
-    cameraOrbitSpeed,
-    breathAmp,
-    breathFreq,
-    baseColor,
-    consciousColor,
-    colorLerpTau,
-  };
-}
-
-const STATE_MAP: Record<string, OrbState> = {
-  idle: "idle",
-  conscious: "conscious",
-  subconscious: "conscious",
-  transitioning: "conscious",
+const PRESETS: Record<string, OrbLiveConfig> = {
+  idle: {
+    attractSpeed: BASE_ATTRACT_SPEED,
+    attractFreq: BASE_ATTRACT_FREQ,
+    cameraOrbitSpeed: BASE_CAMERA_ORBIT_SPEED,
+    breathAmp: 0,
+    breathFreq: 0,
+    baseColor: COLOR_WHITE,
+    consciousColor: COLOR_WHITE,
+    colorLerpTau: COLOR_TAU_DEFAULT,
+  },
+  conscious: {
+    attractSpeed: -0.45,
+    attractFreq: BASE_ATTRACT_FREQ,
+    cameraOrbitSpeed: 0.4,
+    breathAmp: 0.1,
+    breathFreq: 2,
+    baseColor: COLOR_WHITE,
+    consciousColor: COLOR_GOLD,
+    colorLerpTau: COLOR_TAU_DEFAULT,
+  },
+  tool: {
+    attractSpeed: -0.6,
+    attractFreq: 11,
+    cameraOrbitSpeed: 0.7,
+    breathAmp: 0.13,
+    breathFreq: 3,
+    baseColor: COLOR_WHITE,
+    consciousColor: COLOR_ORANGE,
+    colorLerpTau: COLOR_TAU_DEFAULT,
+  },
+  subconscious: {
+    attractSpeed: -0.15,
+    attractFreq: BASE_ATTRACT_FREQ,
+    cameraOrbitSpeed: 0.15,
+    breathAmp: 0.04,
+    breathFreq: 0.5,
+    baseColor: COLOR_INDIGO,
+    consciousColor: COLOR_INDIGO,
+    colorLerpTau: COLOR_TAU_SUBCONSCIOUS,
+  },
 };
+
+function resolvePreset(snap: DashboardSnapshot): OrbLiveConfig {
+  const { conductor, llm, tools } = snap;
+
+  switch (conductor.state) {
+    case "idle":
+      return PRESETS.idle;
+    case "subconscious":
+      return PRESETS.subconscious;
+    default: {
+      if (tools.running !== null) return PRESETS.tool;
+      if (llm?.inFlight) return PRESETS.conscious;
+      return PRESETS.conscious;
+    }
+  }
+}
 
 interface StateOrbProps {
   snapshot?: DashboardSnapshot | null;
 }
 
 export function StateOrb({ snapshot }: StateOrbProps) {
-  const state: OrbState = STATE_MAP[snapshot?.conductor.state ?? "idle"] ?? "idle";
   const liveConfig = useMemo(
-    () => (snapshot ? computeLiveConfig(snapshot) : undefined),
+    () => (snapshot ? resolvePreset(snapshot) : PRESETS.idle),
     [snapshot]
   );
 
   return (
     <div className="h-full w-full">
-      <AgentOrb state={state} liveConfig={liveConfig} />
+      <AgentOrb liveConfig={liveConfig} />
     </div>
   );
 }

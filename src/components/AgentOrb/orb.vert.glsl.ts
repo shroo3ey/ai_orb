@@ -6,7 +6,6 @@ ${NOISE_GLSL}
 attribute float aSeed;
 attribute float aRadialOffset;
 
-uniform float uState;
 uniform float uPixelRatio;
 uniform float uParticleSize;
 uniform float uOrbRadius;
