@@ -77,19 +77,4 @@ vec3 gradNoise(vec3 p) {
   return vec3(nx1 - nx0, ny1 - ny0, nz1 - nz0) / (2.0 * e);
 }
 
-vec3 curl(vec3 p) {
-  const float e = 0.1;
-  float nx1 = snoise(p + vec3(e, 0.0, 0.0));
-  float nx0 = snoise(p - vec3(e, 0.0, 0.0));
-  float ny1 = snoise(p + vec3(0.0, e, 0.0));
-  float ny0 = snoise(p - vec3(0.0, e, 0.0));
-  float nz1 = snoise(p + vec3(0.0, 0.0, e));
-  float nz0 = snoise(p - vec3(0.0, 0.0, e));
-
-  float dx = (nx1 - nx0) / (2.0 * e);
-  float dy = (ny1 - ny0) / (2.0 * e);
-  float dz = (nz1 - nz0) / (2.0 * e);
-
-  return vec3(dy - dz, dz - dx, dx - dy);
-}
 `;

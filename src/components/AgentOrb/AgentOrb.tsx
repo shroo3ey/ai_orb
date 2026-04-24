@@ -4,13 +4,8 @@ import { useEffect, useRef } from 'react';
 import { Pane } from 'tweakpane';
 
 // tweakpane v4 types don't resolve @tweakpane/core properly;
-// at runtime Pane extends FolderApi which has addFolder / addBinding.
-type TpFolder = {
-  addFolder(params: { title: string; expanded?: boolean }): TpFolder;
-  addBinding(obj: Record<string, unknown>, key: string, opts?: Record<string, unknown>): TpBinding;
-};
-type TpBinding = { label: string; on(event: string, cb: (ev: { value: unknown }) => void): void };
-type TpPane = TpFolder & { dispose(): void };
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type TpPane = Pane & Record<string, any>;
 import { createOrbScene } from './orb-scene';
 import { ORB_CONFIG } from './config';
 
@@ -57,9 +52,8 @@ function colorToHex(n: number): string {
   return `#${n.toString(16).padStart(6, '0')}`;
 }
 
-function bindPreset(folder: TpFolder, preset: OrbLiveConfig, onChange: () => void): void {
-  for (const key of Object.keys(preset) as (keyof OrbLiveConfig)[]) {
-    const value = preset[key];
+function bindPreset(folder: TpPane, preset: OrbLiveConfig, onChange: () => void): void {
+  for (const [key, value] of Object.entries(preset)) {
     if (key === 'baseColor' || key === 'consciousColor') {
       const model = { value: colorToHex(value as number) };
       const binding = folder.addBinding(model, 'value', { view: 'color' });
@@ -68,12 +62,8 @@ function bindPreset(folder: TpFolder, preset: OrbLiveConfig, onChange: () => voi
         (preset as Record<string, unknown>)[key] = parseInt((ev.value as string).slice(1), 16);
         onChange();
       });
-      continue;
-    }
-    if (typeof value === 'number') {
-      const opts = PRESET_BINDINGS[key] ?? {};
-      const binding = folder.addBinding(preset as Record<string, unknown>, key, opts);
-      binding.on('change', onChange);
+    } else if (typeof value === 'number') {
+      folder.addBinding(preset as Record<string, unknown>, key, PRESET_BINDINGS[key] ?? {}).on('change', onChange);
     }
   }
 }
@@ -92,18 +82,14 @@ export function AgentOrb({ liveConfig, presets, onPresetChange }: AgentOrbProps)
 
     const paneHost = paneHostRef.current;
     const pane = paneHost
-      ? new Pane({ title: 'Orb Controls', expanded: true, container: paneHost }) as unknown as TpPane
+      ? new Pane({ title: 'Orb Controls', expanded: true, container: paneHost }) as TpPane
       : null;
 
     if (pane) {
       const geoFolder = pane.addFolder({ title: 'geometry', expanded: true });
-      const cfg = ORB_CONFIG as unknown as Record<string, unknown>;
-      for (const key of Object.keys(ORB_CONFIG) as (keyof typeof ORB_CONFIG)[]) {
-        const value = ORB_CONFIG[key];
+      for (const [key, value] of Object.entries(ORB_CONFIG)) {
         if (typeof value === 'number') {
-          const opts = GEOMETRY_BINDINGS[key] ?? {};
-          const binding = geoFolder.addBinding(cfg, key, opts);
-          binding.on('change', () => scene.updateConfig());
+          geoFolder.addBinding(ORB_CONFIG as unknown as Record<string, unknown>, key, GEOMETRY_BINDINGS[key] ?? {}).on('change', () => scene.updateConfig());
         }
       }
 

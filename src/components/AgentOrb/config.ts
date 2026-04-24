@@ -13,6 +13,5 @@ export const ORB_CONFIG: OrbConfig = {
   radialJitter: 0,
   particleSize: 2.0,
   alphaAttenuation: 5,
-
   cameraDistance: 0.98,
 };
