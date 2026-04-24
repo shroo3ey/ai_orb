@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { VERTEX_SHADER } from './orb.vert.glsl';
 import { FRAGMENT_SHADER } from './orb.frag.glsl';
-import { ORB_CONFIG } from './config';
+import { ORB_CONFIG, PRESETS } from './config';
 
 export function createOrbGeometry(count: number, radius: number, radialJitter: number): THREE.BufferGeometry {
   const geometry = new THREE.BufferGeometry();
@@ -60,10 +60,7 @@ export function createOrbMaterial(pixelRatio: number): THREE.ShaderMaterial {
 
 export interface OrbScene {
   updateConfig: () => void;
-  setColors: (base: number, conscious: number) => void;
-  setBreath: (freq: number, amp: number) => void;
-  setAttract: (freq: number, speed: number, maxStep: number) => void;
-  setCameraOrbitSpeed: (speed: number) => void;
+  setLiveConfig: (cfg: import('./config').OrbLiveConfig) => void;
   resize: (width: number, height: number) => void;
   dispose: () => void;
 }
@@ -91,15 +88,16 @@ export function createOrbScene(container: HTMLElement): OrbScene {
   const geometryKey = () => `${ORB_CONFIG.particleCount}|${ORB_CONFIG.orbRadius}|${ORB_CONFIG.radialJitter}`;
   let lastGeometryKey = geometryKey();
 
-  const targetColorBase = new THREE.Color(0xffffff);
-  const targetColorConscious = new THREE.Color(0xffffff);
-
   let breathPhase = 0;
   let attractPhase = 0;
   let camOrbitAngle = 0;
 
-  const target = { breathFreq: 0, breathAmp: 0, attractSpeed: -0.26, attractFreq: 8.7, attractMaxStep: 0.02, cameraOrbitSpeed: 0.3 };
+  const { baseColor: _bc, consciousColor: _cc, ...idleScalars } = PRESETS.idle;
+  const target = { ...idleScalars };
   const smooth = { ...target };
+
+  const targetColorBase = new THREE.Color(PRESETS.idle.baseColor);
+  const targetColorConscious = new THREE.Color(PRESETS.idle.consciousColor);
 
   let lastFrame = performance.now();
   let frameId = 0;
@@ -158,20 +156,12 @@ export function createOrbScene(container: HTMLElement): OrbScene {
 
   return {
     updateConfig,
-    setColors: (base: number, conscious: number) => {
-      targetColorBase.setHex(base);
-      targetColorConscious.setHex(conscious);
+    setLiveConfig: (cfg: import('./config').OrbLiveConfig) => {
+      const { baseColor, consciousColor, ...scalars } = cfg;
+      Object.assign(target, scalars);
+      targetColorBase.setHex(baseColor);
+      targetColorConscious.setHex(consciousColor);
     },
-    setBreath: (freq: number, amp: number) => {
-      target.breathFreq = freq;
-      target.breathAmp = amp;
-    },
-    setAttract: (freq: number, speed: number, maxStep: number) => {
-      target.attractFreq = freq;
-      target.attractSpeed = speed;
-      target.attractMaxStep = maxStep;
-    },
-    setCameraOrbitSpeed: (speed: number) => { target.cameraOrbitSpeed = speed; },
     resize: (w: number, h: number) => {
       camera.aspect = w / h;
       camera.updateProjectionMatrix();

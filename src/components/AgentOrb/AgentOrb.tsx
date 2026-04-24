@@ -2,17 +2,9 @@
 
 import { useEffect, useRef } from 'react';
 import { createOrbScene } from './orb-scene';
+import { PRESETS, type OrbLiveConfig } from './config';
 
-export interface OrbLiveConfig {
-  attractSpeed?: number;
-  attractFreq?: number;
-  attractMaxStep?: number;
-  cameraOrbitSpeed?: number;
-  breathAmp?: number;
-  breathFreq?: number;
-  baseColor?: number;
-  consciousColor?: number;
-}
+export type { OrbLiveConfig };
 
 interface AgentOrbProps {
   liveConfig?: OrbLiveConfig;
@@ -41,12 +33,9 @@ export function AgentOrb({ liveConfig }: AgentOrbProps) {
 
   useEffect(() => {
     const s = sceneRef.current;
-    if (!liveConfig || !s) return;
+    if (!s) return;
 
-    s.setAttract(liveConfig.attractFreq ?? 8.7, liveConfig.attractSpeed ?? -0.26, liveConfig.attractMaxStep ?? 0.02);
-    s.setCameraOrbitSpeed(liveConfig.cameraOrbitSpeed ?? 0.3);
-    s.setBreath(liveConfig.breathFreq ?? 0, liveConfig.breathAmp ?? 0);
-    s.setColors(liveConfig.baseColor ?? 0xffffff, liveConfig.consciousColor ?? 0xffffff);
+    s.setLiveConfig(liveConfig ?? PRESETS.idle);
   }, [liveConfig]);
 
   return (
