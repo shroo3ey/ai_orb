@@ -9,7 +9,7 @@ export interface OrbConfig {
 }
 
 export const ORB_CONFIG: OrbConfig = {
-  particleCount: 12700,
+  particleCount: 8_000,
   orbRadius: 0.15,
   radialJitter: 0,
   particleSize: 2.0,
