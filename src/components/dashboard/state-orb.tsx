@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useReducer } from "react";
+import { useMemo } from "react";
 import { AgentOrb, type OrbLiveConfig } from "@/components/AgentOrb/AgentOrb";
 
 export interface DashboardSnapshot {
@@ -20,7 +20,6 @@ export const PRESETS: Record<string, OrbLiveConfig> = {
     breathFreq: 0,
     baseColor: 0xffffff,
     consciousColor: 0xffffff,
-    colorLerpTau: 0.9,
   },
   conscious: {
     attractSpeed: -0.45,
@@ -31,7 +30,6 @@ export const PRESETS: Record<string, OrbLiveConfig> = {
     breathFreq: 2,
     baseColor: 0xffffff,
     consciousColor: 0xefa61e,
-    colorLerpTau: 0.9,
   },
   tool: {
     attractSpeed: -0.6,
@@ -42,7 +40,6 @@ export const PRESETS: Record<string, OrbLiveConfig> = {
     breathFreq: 3,
     baseColor: 0xffffff,
     consciousColor: 0xff6b1a,
-    colorLerpTau: 0.9,
   },
   subconscious: {
     attractSpeed: -0.15,
@@ -53,24 +50,14 @@ export const PRESETS: Record<string, OrbLiveConfig> = {
     breathFreq: 0.5,
     baseColor: 0x7b8ef7,
     consciousColor: 0x7b8ef7,
-    colorLerpTau: 2.2,
   },
 };
 
 function resolvePreset(snap: DashboardSnapshot): OrbLiveConfig {
-  const { conductor, llm, tools } = snap;
-
-  switch (conductor.state) {
-    case "idle":
-      return PRESETS.idle;
-    case "subconscious":
-      return PRESETS.subconscious;
-    default: {
-      if (tools.running !== null) return PRESETS.tool;
-      if (llm?.inFlight) return PRESETS.conscious;
-      return PRESETS.conscious;
-    }
-  }
+  if (snap.conductor.state === "idle") return PRESETS.idle;
+  if (snap.conductor.state === "subconscious") return PRESETS.subconscious;
+  if (snap.tools.running !== null) return PRESETS.tool;
+  return PRESETS.conscious;
 }
 
 interface StateOrbProps {
@@ -78,20 +65,14 @@ interface StateOrbProps {
 }
 
 export function StateOrb({ snapshot }: StateOrbProps) {
-  const [, forceUpdate] = useReducer((x: number) => x + 1, 0);
-
   const liveConfig = useMemo(
     () => (snapshot ? resolvePreset(snapshot) : PRESETS.idle),
     [snapshot]
   );
 
-  const handlePresetChange = useCallback(() => {
-    forceUpdate();
-  }, []);
-
   return (
     <div className="h-full w-full">
-      <AgentOrb liveConfig={liveConfig} presets={PRESETS} onPresetChange={handlePresetChange} />
+      <AgentOrb liveConfig={liveConfig} />
     </div>
   );
 }

@@ -61,7 +61,6 @@ export function createOrbMaterial(pixelRatio: number): THREE.ShaderMaterial {
 export interface OrbScene {
   updateConfig: () => void;
   setColors: (base: number, conscious: number) => void;
-  setColorLerpTau: (tau: number) => void;
   setBreath: (freq: number, amp: number) => void;
   setAttract: (freq: number, speed: number, maxStep: number) => void;
   setCameraOrbitSpeed: (speed: number) => void;
@@ -70,17 +69,16 @@ export interface OrbScene {
 }
 
 export function createOrbScene(container: HTMLElement): OrbScene {
-  const width = container.clientWidth;
-  const height = container.clientHeight;
+  const { clientWidth: width, clientHeight: height } = container;
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
   camera.position.set(0, 0, ORB_CONFIG.cameraDistance);
   camera.lookAt(0, 0, 0);
 
+  const pixelRatio = Math.min(window.devicePixelRatio, 2);
   const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true });
   renderer.setClearColor(0x000000, 0);
-  const pixelRatio = Math.min(window.devicePixelRatio, 2);
   renderer.setPixelRatio(pixelRatio);
   renderer.setSize(width, height);
   container.appendChild(renderer.domElement);
@@ -93,11 +91,8 @@ export function createOrbScene(container: HTMLElement): OrbScene {
   const geometryKey = () => `${ORB_CONFIG.particleCount}|${ORB_CONFIG.orbRadius}|${ORB_CONFIG.radialJitter}`;
   let lastGeometryKey = geometryKey();
 
-  let colorLerpTau = 0.9;
-  const SMOOTH_LERP_TAU = 0.9;
-
-  let targetColorBase = new THREE.Color(0xffffff);
-  let targetColorConscious = new THREE.Color(0xffffff);
+  const targetColorBase = new THREE.Color(0xffffff);
+  const targetColorConscious = new THREE.Color(0xffffff);
 
   let breathPhase = 0;
   let attractPhase = 0;
@@ -109,25 +104,22 @@ export function createOrbScene(container: HTMLElement): OrbScene {
   let lastFrame = performance.now();
   let frameId = 0;
 
-  const setBreath = (freq: number, amp: number) => {
-    target.breathFreq = freq;
-    target.breathAmp = amp;
-  };
+  const { uniforms } = material;
 
   const updateConfig = () => {
-    const nextGeometryKey = geometryKey();
-    if (nextGeometryKey !== lastGeometryKey) {
-      const nextGeometry = createOrbGeometry(ORB_CONFIG.particleCount, ORB_CONFIG.orbRadius, ORB_CONFIG.radialJitter);
-      points.geometry = nextGeometry;
+    const key = geometryKey();
+    if (key !== lastGeometryKey) {
+      const next = createOrbGeometry(ORB_CONFIG.particleCount, ORB_CONFIG.orbRadius, ORB_CONFIG.radialJitter);
+      points.geometry = next;
       geometry.dispose();
-      geometry = nextGeometry;
-      lastGeometryKey = nextGeometryKey;
+      geometry = next;
+      lastGeometryKey = key;
     }
 
-    material.uniforms.uParticleSize.value = ORB_CONFIG.particleSize;
-    material.uniforms.uAlphaAttenuation.value = ORB_CONFIG.alphaAttenuation;
-    material.uniforms.uOrbRadius.value = ORB_CONFIG.orbRadius;
-    material.uniforms.uCamDist.value = ORB_CONFIG.cameraDistance;
+    uniforms.uParticleSize.value = ORB_CONFIG.particleSize;
+    uniforms.uAlphaAttenuation.value = ORB_CONFIG.alphaAttenuation;
+    uniforms.uOrbRadius.value = ORB_CONFIG.orbRadius;
+    uniforms.uCamDist.value = ORB_CONFIG.cameraDistance;
   };
 
   updateConfig();
@@ -138,26 +130,23 @@ export function createOrbScene(container: HTMLElement): OrbScene {
     const dt = Math.min((now - lastFrame) / 1000, 0.1);
     lastFrame = now;
 
-    // Smooth live-config scalars
-    const smoothAlpha = 1 - Math.exp(-dt / SMOOTH_LERP_TAU);
+    const alpha = 1 - Math.exp(-dt / ORB_CONFIG.lerp);
     for (const k of Object.keys(smooth) as (keyof typeof smooth)[]) {
-      smooth[k] += (target[k] - smooth[k]) * smoothAlpha;
+      smooth[k] += (target[k] - smooth[k]) * alpha;
     }
 
     breathPhase += dt * smooth.breathFreq;
     attractPhase += dt * smooth.attractSpeed;
     camOrbitAngle += dt * smooth.cameraOrbitSpeed;
 
-    // Color lerp
-    const colorAlpha = 1 - Math.exp(-dt / colorLerpTau);
-    (material.uniforms.uColorBase.value as THREE.Color).lerp(targetColorBase, colorAlpha);
-    (material.uniforms.uColorConscious.value as THREE.Color).lerp(targetColorConscious, colorAlpha);
+    (uniforms.uColorBase.value as THREE.Color).lerp(targetColorBase, alpha);
+    (uniforms.uColorConscious.value as THREE.Color).lerp(targetColorConscious, alpha);
 
-    material.uniforms.uBreathAmp.value = smooth.breathAmp;
-    material.uniforms.uBreathPhase.value = breathPhase;
-    material.uniforms.uAttractPhase.value = attractPhase;
-    material.uniforms.uAttractFreq.value = smooth.attractFreq;
-    material.uniforms.uAttractMaxStep.value = smooth.attractMaxStep;
+    uniforms.uBreathAmp.value = smooth.breathAmp;
+    uniforms.uBreathPhase.value = breathPhase;
+    uniforms.uAttractPhase.value = attractPhase;
+    uniforms.uAttractFreq.value = smooth.attractFreq;
+    uniforms.uAttractMaxStep.value = smooth.attractMaxStep;
 
     camera.position.x = Math.sin(camOrbitAngle) * ORB_CONFIG.cameraDistance;
     camera.position.z = Math.cos(camOrbitAngle) * ORB_CONFIG.cameraDistance;
@@ -167,40 +156,33 @@ export function createOrbScene(container: HTMLElement): OrbScene {
   };
   animate();
 
-  const resize = (w: number, h: number) => {
-    camera.aspect = w / h;
-    camera.updateProjectionMatrix();
-    renderer.setSize(w, h);
+  return {
+    updateConfig,
+    setColors: (base: number, conscious: number) => {
+      targetColorBase.setHex(base);
+      targetColorConscious.setHex(conscious);
+    },
+    setBreath: (freq: number, amp: number) => {
+      target.breathFreq = freq;
+      target.breathAmp = amp;
+    },
+    setAttract: (freq: number, speed: number, maxStep: number) => {
+      target.attractFreq = freq;
+      target.attractSpeed = speed;
+      target.attractMaxStep = maxStep;
+    },
+    setCameraOrbitSpeed: (speed: number) => { target.cameraOrbitSpeed = speed; },
+    resize: (w: number, h: number) => {
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    },
+    dispose: () => {
+      cancelAnimationFrame(frameId);
+      geometry.dispose();
+      material.dispose();
+      renderer.dispose();
+      renderer.domElement.parentNode?.removeChild(renderer.domElement);
+    },
   };
-
-  const dispose = () => {
-    cancelAnimationFrame(frameId);
-    geometry.dispose();
-    material.dispose();
-    renderer.dispose();
-    if (renderer.domElement.parentNode) {
-      renderer.domElement.parentNode.removeChild(renderer.domElement);
-    }
-  };
-
-  const setColors = (base: number, conscious: number) => {
-    targetColorBase.setHex(base);
-    targetColorConscious.setHex(conscious);
-  };
-
-  const setColorLerpTau = (tau: number) => {
-    colorLerpTau = Math.max(0.05, tau);
-  };
-
-  const setAttract = (freq: number, speed: number, maxStep: number) => {
-    target.attractFreq = freq;
-    target.attractSpeed = speed;
-    target.attractMaxStep = maxStep;
-  };
-
-  const setCameraOrbitSpeed = (speed: number) => {
-    target.cameraOrbitSpeed = speed;
-  };
-
-  return { updateConfig, setColors, setColorLerpTau, setBreath, setAttract, setCameraOrbitSpeed, resize, dispose };
 }

@@ -5,6 +5,7 @@ export interface OrbConfig {
   particleSize: number;      // combined size multiplier (base × perspective scale)
   alphaAttenuation: number;  // multiplied into final fragment alpha; lower = more translucent
   cameraDistance: number;    // camera orbit radius (world units); MUST be > orbRadius
+  lerp: number;              // exponential smoothing time constant (seconds)
 }
 
 export const ORB_CONFIG: OrbConfig = {
@@ -14,4 +15,5 @@ export const ORB_CONFIG: OrbConfig = {
   particleSize: 2.0,
   alphaAttenuation: 5,
   cameraDistance: 0.98,
+  lerp: 0.9,
 };
