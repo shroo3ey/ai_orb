@@ -31,14 +31,14 @@ export interface OrbLiveConfig {
 
 export const PRESETS: Record<string, OrbLiveConfig> = {
   idle: {
-    attractSpeed: -0.26,
-    attractFreq: 8.7,
-    attractMaxStep: 0.02,
-    cameraOrbitSpeed: 0.3,
+    attractSpeed: -0.16,
+    attractFreq: 14,
+    attractMaxStep: 0.01,
+    cameraOrbitSpeed: 0.1,
     breathAmp: 0,
     breathFreq: 0,
     baseColor: 0xffffff,
-    consciousColor: 0xffffff,
+    consciousColor: 0x111111,
   },
   conscious: {
     attractSpeed: -0.45,
@@ -47,8 +47,8 @@ export const PRESETS: Record<string, OrbLiveConfig> = {
     cameraOrbitSpeed: 0.4,
     breathAmp: 0.1,
     breathFreq: 2,
-    baseColor: 0xffffff,
-    consciousColor: 0xefa61e,
+    baseColor: 0xefa61e,
+    consciousColor: 0xffe9b2,
   },
   tool: {
     attractSpeed: -0.6,
@@ -57,7 +57,7 @@ export const PRESETS: Record<string, OrbLiveConfig> = {
     cameraOrbitSpeed: 0.7,
     breathAmp: 0.13,
     breathFreq: 3,
-    baseColor: 0xffffff,
+    baseColor: 0xefa61e,
     consciousColor: 0xff6b1a,
   },
   subconscious: {
