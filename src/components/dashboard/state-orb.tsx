@@ -9,7 +9,6 @@ const COLOR_GOLD    = 0xefa61e; // conscious / LLM thinking
 const COLOR_ORANGE  = 0xff6b1a; // tool running
 const COLOR_INDIGO  = 0x7b8ef7; // subconscious
 
-const BASE_ATTRACT_STRENGTH = 10.87;
 const BASE_ATTRACT_SPEED = -0.26;
 const BASE_ATTRACT_FREQ = 8.7;
 const BASE_CAMERA_ORBIT_SPEED = 0.3;
@@ -31,13 +30,11 @@ function computeLiveConfig(snap: DashboardSnapshot): OrbLiveConfig {
 
   if (conductor.state === "idle") {
     return {
-      attractStrength: BASE_ATTRACT_STRENGTH,
       attractSpeed: BASE_ATTRACT_SPEED,
       attractFreq: BASE_ATTRACT_FREQ,
       cameraOrbitSpeed: BASE_CAMERA_ORBIT_SPEED,
-      consciousBreathAmp: 0.06,
-      consciousBreathFreq: 0,
-      consciousOrbitSpeed: 0.03,
+      breathAmp: 0,
+      breathFreq: 0,
       baseColor: COLOR_WHITE,
       consciousColor: COLOR_WHITE,
       colorLerpTau: COLOR_TAU_DEFAULT,
@@ -49,56 +46,46 @@ function computeLiveConfig(snap: DashboardSnapshot): OrbLiveConfig {
   const queueBusy = queue.channels.some((c) => c.queueDepth > 0);
 
   // Stack activity signals
-  let attractStrength = BASE_ATTRACT_STRENGTH;
   let attractSpeed = BASE_ATTRACT_SPEED;
   let cameraOrbitSpeed = 0.4;
-  let consciousBreathAmp = 0.06;
-  let consciousBreathFreq = 0;
-  let consciousOrbitSpeed = 0.03;
+  let breathAmp = 0.06;
+  let breathFreq = 0;
   let attractFreq = queueBusy ? 11 : BASE_ATTRACT_FREQ;
   let baseColor = COLOR_WHITE;
   let consciousColor = COLOR_GOLD;
   let colorLerpTau = COLOR_TAU_DEFAULT;
 
   if (llmActive) {
-    attractStrength += 7;
     attractSpeed = -0.45;
-    consciousBreathAmp = 0.1;
-    consciousBreathFreq = 2;
-    consciousOrbitSpeed = 0.05;
+    breathAmp = 0.1;
+    breathFreq = 2;
     consciousColor = COLOR_GOLD;
   }
 
   if (toolRunning) {
-    attractStrength += 8;
     attractSpeed = -0.6;
     cameraOrbitSpeed = 0.7;
-    consciousBreathAmp = 0.13;
-    consciousBreathFreq = 3;
-    consciousOrbitSpeed = 0.07;
+    breathAmp = 0.13;
+    breathFreq = 3;
     consciousColor = COLOR_ORANGE;
   }
 
   if (conductor.state === "subconscious") {
-    attractStrength = 5;
     attractSpeed = -0.15;
     cameraOrbitSpeed = 0.15;
-    consciousBreathAmp = 0.04;
-    consciousBreathFreq = 0.5;
-    consciousOrbitSpeed = 0.015;
+    breathAmp = 0.04;
+    breathFreq = 0.5;
     baseColor = COLOR_INDIGO;
     consciousColor = COLOR_INDIGO;
     colorLerpTau = COLOR_TAU_SUBCONSCIOUS;
   }
 
   return {
-    attractStrength,
     attractSpeed,
     attractFreq,
     cameraOrbitSpeed,
-    consciousBreathAmp,
-    consciousBreathFreq,
-    consciousOrbitSpeed,
+    breathAmp,
+    breathFreq,
     baseColor,
     consciousColor,
     colorLerpTau,

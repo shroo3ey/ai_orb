@@ -8,13 +8,11 @@ import { ORB_CONFIG } from './config';
 export type { OrbState };
 
 export interface OrbLiveConfig {
-  attractStrength?: number;
   attractSpeed?: number;
   attractFreq?: number;
   cameraOrbitSpeed?: number;
-  consciousBreathAmp?: number;
-  consciousBreathFreq?: number;
-  consciousOrbitSpeed?: number;
+  breathAmp?: number;
+  breathFreq?: number;
   /** hex number e.g. 0xffffff */
   baseColor?: number;
   /** hex number e.g. 0xefa61e */
@@ -38,38 +36,14 @@ const NUMERIC_BINDINGS: Record<string, NumericBinding> = {
   particleCount: { min: 500, max: 30000, step: 100 },
   orbRadius: { min: 0.05, max: 0.7, step: 0.005 },
   radialJitter: { min: 0, max: 0.5, step: 0.001 },
-  pointSizeBase: { min: 0.1, max: 8, step: 0.05 },
-  pointSizeScale: { min: 0.1, max: 10, step: 0.05 },
+  particleSize: { min: 0.1, max: 10, step: 0.05 },
   alphaAttenuation: { min: 0, max: 5, step: 0.01 },
   cameraDistance: { min: 0.2, max: 5, step: 0.01 },
   cameraOrbitSpeed: { min: -4, max: 4, step: 0.01 },
-  lerpTau: { min: 0.001, max: 2, step: 0.001 },
 
   'attract.freq': { min: 0, max: 20, step: 0.01 },
   'attract.speed': { min: -3, max: 3, step: 0.01 },
-  'attract.strength': { min: 0, max: 100, step: 0.01 },
-  'attract.exponent': { min: 0.1, max: 4, step: 0.01 },
-  'attract.deadzone': { min: 0, max: 2, step: 0.001 },
-  'attract.maxStep': { min: 0.001, max: 1, step: 0.001 },
-  'attract.centerPull': { min: 0, max: 0.25, step: 0.0005 },
-  'attract.centerFalloff': { min: 0, max: 4, step: 0.01 },
-
-  axisVariance: { min: 0, max: 1, step: 0.001 },
-  'pulse.amplitude': { min: 0, max: 2, step: 0.01 },
-  'pulse.duration': { min: 0.01, max: 5, step: 0.01 },
-
-  'states.idle.orbitSpeed': { min: -3, max: 3, step: 0.001 },
-  'states.idle.turbAmp': { min: 0, max: 1, step: 0.001 },
-  'states.idle.noiseFreq': { min: 0, max: 20, step: 0.01 },
-  'states.idle.noiseSpeed': { min: -5, max: 5, step: 0.01 },
-  'states.idle.breathFreq': { min: 0, max: 20, step: 0.01 },
-  'states.idle.breathAmp': { min: 0, max: 1, step: 0.001 },
-  'states.conscious.orbitSpeed': { min: -3, max: 3, step: 0.001 },
-  'states.conscious.turbAmp': { min: 0, max: 1, step: 0.001 },
-  'states.conscious.noiseFreq': { min: 0, max: 20, step: 0.01 },
-  'states.conscious.noiseSpeed': { min: -5, max: 5, step: 0.01 },
-  'states.conscious.breathFreq': { min: 0, max: 20, step: 0.01 },
-  'states.conscious.breathAmp': { min: 0, max: 1, step: 0.001 },
+  'attract.maxStep': { min: 0, max: 0.1, step: 0.001 },
 };
 
 function colorToHexString(color: number): string {
@@ -151,14 +125,13 @@ export function AgentOrb({ state, liveConfig }: AgentOrbProps) {
 
   useEffect(() => {
     if (!liveConfig) return;
-    if (liveConfig.attractStrength !== undefined) ORB_CONFIG.attract.strength = liveConfig.attractStrength;
     if (liveConfig.attractSpeed !== undefined) ORB_CONFIG.attract.speed = liveConfig.attractSpeed;
     if (liveConfig.attractFreq !== undefined) ORB_CONFIG.attract.freq = liveConfig.attractFreq;
     if (liveConfig.cameraOrbitSpeed !== undefined) ORB_CONFIG.cameraOrbitSpeed = liveConfig.cameraOrbitSpeed;
-    if (liveConfig.consciousBreathAmp !== undefined) ORB_CONFIG.states.conscious.breathAmp = liveConfig.consciousBreathAmp;
-    if (liveConfig.consciousBreathFreq !== undefined) ORB_CONFIG.states.conscious.breathFreq = liveConfig.consciousBreathFreq;
-    if (liveConfig.consciousOrbitSpeed !== undefined) ORB_CONFIG.states.conscious.orbitSpeed = liveConfig.consciousOrbitSpeed;
     sceneRef.current?.updateConfig();
+    if (liveConfig.breathFreq !== undefined || liveConfig.breathAmp !== undefined) {
+      sceneRef.current?.setBreath(liveConfig.breathFreq ?? 0, liveConfig.breathAmp ?? 0);
+    }
     if (liveConfig.colorLerpTau !== undefined) {
       sceneRef.current?.setColorLerpTau(liveConfig.colorLerpTau);
     }
