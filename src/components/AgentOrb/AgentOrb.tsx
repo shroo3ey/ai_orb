@@ -7,8 +7,25 @@ import { ORB_CONFIG } from './config';
 
 export type { OrbState };
 
+export interface OrbLiveConfig {
+  attractStrength?: number;
+  attractSpeed?: number;
+  attractFreq?: number;
+  cameraOrbitSpeed?: number;
+  consciousBreathAmp?: number;
+  consciousBreathFreq?: number;
+  consciousOrbitSpeed?: number;
+  /** hex number e.g. 0xffffff */
+  baseColor?: number;
+  /** hex number e.g. 0xefa61e */
+  consciousColor?: number;
+  /** seconds; ~3×tau to fully settle. Omit to use scene default. */
+  colorLerpTau?: number;
+}
+
 interface AgentOrbProps {
   state: OrbState;
+  liveConfig?: OrbLiveConfig;
 }
 
 type NumericBinding = {
@@ -21,9 +38,6 @@ const NUMERIC_BINDINGS: Record<string, NumericBinding> = {
   particleCount: { min: 500, max: 30000, step: 100 },
   orbRadius: { min: 0.05, max: 0.7, step: 0.005 },
   radialJitter: { min: 0, max: 0.5, step: 0.001 },
-  'core.ratio': { min: 0, max: 0.8, step: 0.01 },
-  'core.radius': { min: 0.02, max: 0.95, step: 0.005 },
-  'core.concentration': { min: 0.5, max: 6, step: 0.05 },
   pointSizeBase: { min: 0.1, max: 8, step: 0.05 },
   pointSizeScale: { min: 0.1, max: 10, step: 0.05 },
   alphaAttenuation: { min: 0, max: 5, step: 0.01 },
@@ -68,7 +82,7 @@ function bindObject(folder: FolderApi, source: Record<string, unknown>, path: st
     const pathKey = nextPath.join('.');
     const value = source[key];
 
-    if (pathKey === 'colors.base' || pathKey === 'colors.conscious' || pathKey === 'colors.core') {
+    if (pathKey === 'colors.base' || pathKey === 'colors.conscious') {
       const colorModel = { value: colorToHexString(value as number) };
       const colorBinding = folder.addBinding(colorModel, 'value', { view: 'color' });
       colorBinding.label = key;
@@ -93,7 +107,7 @@ function bindObject(folder: FolderApi, source: Record<string, unknown>, path: st
   }
 }
 
-export function AgentOrb({ state }: AgentOrbProps) {
+export function AgentOrb({ state, liveConfig }: AgentOrbProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const paneHostRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<ReturnType<typeof createOrbScene> | null>(null);
@@ -134,6 +148,26 @@ export function AgentOrb({ state }: AgentOrbProps) {
   useEffect(() => {
     sceneRef.current?.setState(state);
   }, [state]);
+
+  useEffect(() => {
+    if (!liveConfig) return;
+    if (liveConfig.attractStrength !== undefined) ORB_CONFIG.attract.strength = liveConfig.attractStrength;
+    if (liveConfig.attractSpeed !== undefined) ORB_CONFIG.attract.speed = liveConfig.attractSpeed;
+    if (liveConfig.attractFreq !== undefined) ORB_CONFIG.attract.freq = liveConfig.attractFreq;
+    if (liveConfig.cameraOrbitSpeed !== undefined) ORB_CONFIG.cameraOrbitSpeed = liveConfig.cameraOrbitSpeed;
+    if (liveConfig.consciousBreathAmp !== undefined) ORB_CONFIG.states.conscious.breathAmp = liveConfig.consciousBreathAmp;
+    if (liveConfig.consciousBreathFreq !== undefined) ORB_CONFIG.states.conscious.breathFreq = liveConfig.consciousBreathFreq;
+    if (liveConfig.consciousOrbitSpeed !== undefined) ORB_CONFIG.states.conscious.orbitSpeed = liveConfig.consciousOrbitSpeed;
+    sceneRef.current?.updateConfig();
+    if (liveConfig.colorLerpTau !== undefined) {
+      sceneRef.current?.setColorLerpTau(liveConfig.colorLerpTau);
+    }
+    if (liveConfig.baseColor !== undefined || liveConfig.consciousColor !== undefined) {
+      const base = liveConfig.baseColor ?? ORB_CONFIG.colors.base;
+      const conscious = liveConfig.consciousColor ?? ORB_CONFIG.colors.conscious;
+      sceneRef.current?.setColors(base, conscious);
+    }
+  }, [liveConfig]);
 
   return (
     <div className="relative w-full h-full">
