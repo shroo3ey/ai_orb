@@ -24,7 +24,7 @@ interface StateOrbProps {
 
 export function StateOrb({ snapshot }: StateOrbProps) {
   const liveConfig = useMemo(
-    () => (snapshot ? resolvePreset(snapshot) : PRESETS.idle),
+    () => snapshot ? resolvePreset(snapshot) : PRESETS.idle,
     [snapshot]
   );
 

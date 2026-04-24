@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { createOrbScene } from './orb-scene';
-import { PRESETS, type OrbLiveConfig } from './config';
+import { type OrbLiveConfig } from './config';
 
 export type { OrbLiveConfig };
 
@@ -18,7 +18,7 @@ export function AgentOrb({ liveConfig }: AgentOrbProps) {
     const container = containerRef.current;
     if (!container) return;
 
-    const scene = createOrbScene(container);
+    const scene = createOrbScene(container, liveConfig);
     sceneRef.current = scene;
 
     const handleResize = () => scene.resize(container.clientWidth, container.clientHeight);
@@ -33,9 +33,9 @@ export function AgentOrb({ liveConfig }: AgentOrbProps) {
 
   useEffect(() => {
     const s = sceneRef.current;
-    if (!s) return;
+    if (!s || !liveConfig) return;
 
-    s.setLiveConfig(liveConfig ?? PRESETS.idle);
+    s.setLiveConfig(liveConfig);
   }, [liveConfig]);
 
   return (

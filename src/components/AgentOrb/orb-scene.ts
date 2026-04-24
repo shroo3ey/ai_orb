@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { VERTEX_SHADER } from './orb.vert.glsl';
 import { FRAGMENT_SHADER } from './orb.frag.glsl';
-import { ORB_CONFIG, PRESETS } from './config';
+import { ORB_CONFIG, PRESETS, type OrbLiveConfig } from './config';
 
 export function createOrbGeometry(count: number, radius: number, radialJitter: number): THREE.BufferGeometry {
   const geometry = new THREE.BufferGeometry();
@@ -33,7 +33,7 @@ export function createOrbGeometry(count: number, radius: number, radialJitter: n
   return geometry;
 }
 
-export function createOrbMaterial(pixelRatio: number): THREE.ShaderMaterial {
+export function createOrbMaterial(pixelRatio: number, initial: OrbLiveConfig): THREE.ShaderMaterial {
   return new THREE.ShaderMaterial({
     uniforms: {
       uPixelRatio: { value: pixelRatio },
@@ -41,13 +41,13 @@ export function createOrbMaterial(pixelRatio: number): THREE.ShaderMaterial {
       uAlphaAttenuation: { value: ORB_CONFIG.alphaAttenuation },
       uOrbRadius: { value: ORB_CONFIG.orbRadius },
       uCamDist: { value: ORB_CONFIG.cameraDistance },
-      uColorBase: { value: new THREE.Color(0xffffff) },
-      uColorConscious: { value: new THREE.Color(0xffffff) },
-      uBreathAmp: { value: 0 },
+      uColorBase: { value: new THREE.Color(initial.baseColor) },
+      uColorConscious: { value: new THREE.Color(initial.consciousColor) },
+      uBreathAmp: { value: initial.breathAmp },
       uBreathPhase: { value: 0 },
       uAttractPhase: { value: 0 },
-      uAttractFreq: { value: 8.7 },
-      uAttractMaxStep: { value: 0.02 },
+      uAttractFreq: { value: initial.attractFreq },
+      uAttractMaxStep: { value: initial.attractMaxStep },
     },
     vertexShader: VERTEX_SHADER,
     fragmentShader: FRAGMENT_SHADER,
@@ -65,7 +65,7 @@ export interface OrbScene {
   dispose: () => void;
 }
 
-export function createOrbScene(container: HTMLElement): OrbScene {
+export function createOrbScene(container: HTMLElement, initial: OrbLiveConfig = PRESETS.idle): OrbScene {
   const { clientWidth: width, clientHeight: height } = container;
 
   const scene = new THREE.Scene();
@@ -81,7 +81,7 @@ export function createOrbScene(container: HTMLElement): OrbScene {
   container.appendChild(renderer.domElement);
 
   let geometry = createOrbGeometry(ORB_CONFIG.particleCount, ORB_CONFIG.orbRadius, ORB_CONFIG.radialJitter);
-  const material = createOrbMaterial(pixelRatio);
+  const material = createOrbMaterial(pixelRatio, initial);
   const points = new THREE.Points(geometry, material);
   scene.add(points);
 
@@ -92,12 +92,12 @@ export function createOrbScene(container: HTMLElement): OrbScene {
   let attractPhase = 0;
   let camOrbitAngle = 0;
 
-  const { baseColor: _bc, consciousColor: _cc, ...idleScalars } = PRESETS.idle;
-  const target = { ...idleScalars };
+  const { baseColor: _bc, consciousColor: _cc, ...initialScalars } = initial;
+  const target = { ...initialScalars };
   const smooth = { ...target };
 
-  const targetColorBase = new THREE.Color(PRESETS.idle.baseColor);
-  const targetColorConscious = new THREE.Color(PRESETS.idle.consciousColor);
+  const targetColorBase = new THREE.Color(initial.baseColor);
+  const targetColorConscious = new THREE.Color(initial.consciousColor);
 
   let lastFrame = performance.now();
   let frameId = 0;
