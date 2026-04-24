@@ -46,8 +46,8 @@ export function createOrbMaterial(pixelRatio: number): THREE.ShaderMaterial {
       uBreathAmp: { value: 0 },
       uBreathPhase: { value: 0 },
       uAttractPhase: { value: 0 },
-      uAttractFreq: { value: ORB_CONFIG.attract.freq },
-      uAttractMaxStep: { value: ORB_CONFIG.attract.maxStep },
+      uAttractFreq: { value: 8.7 },
+      uAttractMaxStep: { value: 0.02 },
     },
     vertexShader: VERTEX_SHADER,
     fragmentShader: FRAGMENT_SHADER,
@@ -63,6 +63,8 @@ export interface OrbScene {
   setColors: (base: number, conscious: number) => void;
   setColorLerpTau: (tau: number) => void;
   setBreath: (freq: number, amp: number) => void;
+  setAttract: (freq: number, speed: number, maxStep: number) => void;
+  setCameraOrbitSpeed: (speed: number) => void;
   resize: (width: number, height: number) => void;
   dispose: () => void;
 }
@@ -107,9 +109,13 @@ export function createOrbScene(container: HTMLElement): OrbScene {
   let smoothBreathFreq = 0;
   let smoothBreathAmp = 0;
 
-  let smoothAttractSpeed = ORB_CONFIG.attract.speed;
-  let smoothAttractFreq = ORB_CONFIG.attract.freq;
-  let smoothCameraOrbitSpeed = ORB_CONFIG.cameraOrbitSpeed;
+  let targetAttractSpeed = -0.26;
+  let targetAttractFreq = 8.7;
+  let targetAttractMaxStep = 0.02;
+  let smoothAttractSpeed = targetAttractSpeed;
+  let smoothAttractFreq = targetAttractFreq;
+  let targetCameraOrbitSpeed = 0.3;
+  let smoothCameraOrbitSpeed = targetCameraOrbitSpeed;
 
   let lastFrame = performance.now();
   let frameId = 0;
@@ -133,7 +139,6 @@ export function createOrbScene(container: HTMLElement): OrbScene {
     material.uniforms.uAlphaAttenuation.value = ORB_CONFIG.alphaAttenuation;
     material.uniforms.uOrbRadius.value = ORB_CONFIG.orbRadius;
     material.uniforms.uCamDist.value = ORB_CONFIG.cameraDistance;
-    material.uniforms.uAttractMaxStep.value = ORB_CONFIG.attract.maxStep;
   };
 
   updateConfig();
@@ -146,9 +151,9 @@ export function createOrbScene(container: HTMLElement): OrbScene {
 
     // Smooth live-config scalars
     const smoothAlpha = 1 - Math.exp(-dt / SMOOTH_LERP_TAU);
-    smoothAttractSpeed += (ORB_CONFIG.attract.speed - smoothAttractSpeed) * smoothAlpha;
-    smoothAttractFreq += (ORB_CONFIG.attract.freq - smoothAttractFreq) * smoothAlpha;
-    smoothCameraOrbitSpeed += (ORB_CONFIG.cameraOrbitSpeed - smoothCameraOrbitSpeed) * smoothAlpha;
+    smoothAttractSpeed += (targetAttractSpeed - smoothAttractSpeed) * smoothAlpha;
+    smoothAttractFreq += (targetAttractFreq - smoothAttractFreq) * smoothAlpha;
+    smoothCameraOrbitSpeed += (targetCameraOrbitSpeed - smoothCameraOrbitSpeed) * smoothAlpha;
     smoothBreathFreq += (targetBreathFreq - smoothBreathFreq) * smoothAlpha;
     smoothBreathAmp += (targetBreathAmp - smoothBreathAmp) * smoothAlpha;
 
@@ -165,6 +170,7 @@ export function createOrbScene(container: HTMLElement): OrbScene {
     material.uniforms.uBreathPhase.value = breathPhase;
     material.uniforms.uAttractPhase.value = attractPhase;
     material.uniforms.uAttractFreq.value = smoothAttractFreq;
+    material.uniforms.uAttractMaxStep.value = targetAttractMaxStep;
 
     camera.position.x = Math.sin(camOrbitAngle) * ORB_CONFIG.cameraDistance;
     camera.position.z = Math.cos(camOrbitAngle) * ORB_CONFIG.cameraDistance;
@@ -199,5 +205,15 @@ export function createOrbScene(container: HTMLElement): OrbScene {
     colorLerpTau = Math.max(0.05, tau);
   };
 
-  return { updateConfig, setColors, setColorLerpTau, setBreath, resize, dispose };
+  const setAttract = (freq: number, speed: number, maxStep: number) => {
+    targetAttractFreq = freq;
+    targetAttractSpeed = speed;
+    targetAttractMaxStep = maxStep;
+  };
+
+  const setCameraOrbitSpeed = (speed: number) => {
+    targetCameraOrbitSpeed = speed;
+  };
+
+  return { updateConfig, setColors, setColorLerpTau, setBreath, setAttract, setCameraOrbitSpeed, resize, dispose };
 }

@@ -1,22 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useMemo, useReducer } from "react";
 import { AgentOrb, type OrbLiveConfig } from "@/components/AgentOrb/AgentOrb";
-
-// Colors
-const COLOR_WHITE   = 0xffffff; // idle
-const COLOR_GOLD    = 0xefa61e; // conscious / LLM thinking
-const COLOR_ORANGE  = 0xff6b1a; // tool running
-const COLOR_INDIGO  = 0x7b8ef7; // subconscious
-
-const BASE_ATTRACT_SPEED = -0.26;
-const BASE_ATTRACT_FREQ = 8.7;
-const BASE_CAMERA_ORBIT_SPEED = 0.3;
-
-// Color lerp time constants (seconds). Subconscious is stretched so the indigo
-// visibly blooms in rather than snapping.
-const COLOR_TAU_DEFAULT = 0.9;
-const COLOR_TAU_SUBCONSCIOUS = 2.2;
 
 export interface DashboardSnapshot {
   conductor: { state: string };
@@ -25,46 +10,50 @@ export interface DashboardSnapshot {
   queue: { channels: Array<{ queueDepth: number }> };
 }
 
-const PRESETS: Record<string, OrbLiveConfig> = {
+export const PRESETS: Record<string, OrbLiveConfig> = {
   idle: {
-    attractSpeed: BASE_ATTRACT_SPEED,
-    attractFreq: BASE_ATTRACT_FREQ,
-    cameraOrbitSpeed: BASE_CAMERA_ORBIT_SPEED,
+    attractSpeed: -0.26,
+    attractFreq: 8.7,
+    attractMaxStep: 0.02,
+    cameraOrbitSpeed: 0.3,
     breathAmp: 0,
     breathFreq: 0,
-    baseColor: COLOR_WHITE,
-    consciousColor: COLOR_WHITE,
-    colorLerpTau: COLOR_TAU_DEFAULT,
+    baseColor: 0xffffff,
+    consciousColor: 0xffffff,
+    colorLerpTau: 0.9,
   },
   conscious: {
     attractSpeed: -0.45,
-    attractFreq: BASE_ATTRACT_FREQ,
+    attractFreq: 8.7,
+    attractMaxStep: 0.02,
     cameraOrbitSpeed: 0.4,
     breathAmp: 0.1,
     breathFreq: 2,
-    baseColor: COLOR_WHITE,
-    consciousColor: COLOR_GOLD,
-    colorLerpTau: COLOR_TAU_DEFAULT,
+    baseColor: 0xffffff,
+    consciousColor: 0xefa61e,
+    colorLerpTau: 0.9,
   },
   tool: {
     attractSpeed: -0.6,
     attractFreq: 11,
+    attractMaxStep: 0.02,
     cameraOrbitSpeed: 0.7,
     breathAmp: 0.13,
     breathFreq: 3,
-    baseColor: COLOR_WHITE,
-    consciousColor: COLOR_ORANGE,
-    colorLerpTau: COLOR_TAU_DEFAULT,
+    baseColor: 0xffffff,
+    consciousColor: 0xff6b1a,
+    colorLerpTau: 0.9,
   },
   subconscious: {
     attractSpeed: -0.15,
-    attractFreq: BASE_ATTRACT_FREQ,
+    attractFreq: 8.7,
+    attractMaxStep: 0.02,
     cameraOrbitSpeed: 0.15,
     breathAmp: 0.04,
     breathFreq: 0.5,
-    baseColor: COLOR_INDIGO,
-    consciousColor: COLOR_INDIGO,
-    colorLerpTau: COLOR_TAU_SUBCONSCIOUS,
+    baseColor: 0x7b8ef7,
+    consciousColor: 0x7b8ef7,
+    colorLerpTau: 2.2,
   },
 };
 
@@ -89,14 +78,20 @@ interface StateOrbProps {
 }
 
 export function StateOrb({ snapshot }: StateOrbProps) {
+  const [, forceUpdate] = useReducer((x: number) => x + 1, 0);
+
   const liveConfig = useMemo(
     () => (snapshot ? resolvePreset(snapshot) : PRESETS.idle),
     [snapshot]
   );
 
+  const handlePresetChange = useCallback(() => {
+    forceUpdate();
+  }, []);
+
   return (
     <div className="h-full w-full">
-      <AgentOrb liveConfig={liveConfig} />
+      <AgentOrb liveConfig={liveConfig} presets={PRESETS} onPresetChange={handlePresetChange} />
     </div>
   );
 }

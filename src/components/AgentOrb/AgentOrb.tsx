@@ -1,69 +1,84 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { Pane, type FolderApi } from 'tweakpane';
+import { Pane } from 'tweakpane';
+
+// tweakpane v4 types don't resolve @tweakpane/core properly;
+// at runtime Pane extends FolderApi which has addFolder / addBinding.
+type TpFolder = {
+  addFolder(params: { title: string; expanded?: boolean }): TpFolder;
+  addBinding(obj: Record<string, unknown>, key: string, opts?: Record<string, unknown>): TpBinding;
+};
+type TpBinding = { label: string; on(event: string, cb: (ev: { value: unknown }) => void): void };
+type TpPane = TpFolder & { dispose(): void };
 import { createOrbScene } from './orb-scene';
 import { ORB_CONFIG } from './config';
 
 export interface OrbLiveConfig {
   attractSpeed?: number;
   attractFreq?: number;
+  attractMaxStep?: number;
   cameraOrbitSpeed?: number;
   breathAmp?: number;
   breathFreq?: number;
-  /** hex number e.g. 0xffffff */
   baseColor?: number;
-  /** hex number e.g. 0xefa61e */
   consciousColor?: number;
-  /** seconds; ~3×tau to fully settle. Omit to use scene default. */
   colorLerpTau?: number;
 }
 
 interface AgentOrbProps {
   liveConfig?: OrbLiveConfig;
+  presets?: Record<string, OrbLiveConfig>;
+  onPresetChange?: () => void;
 }
 
-type NumericBinding = {
-  min?: number;
-  max?: number;
-  step?: number;
-};
+type NumericBinding = { min?: number; max?: number; step?: number };
 
-const NUMERIC_BINDINGS: Record<string, NumericBinding> = {
+const GEOMETRY_BINDINGS: Record<string, NumericBinding> = {
   particleCount: { min: 500, max: 30000, step: 100 },
   orbRadius: { min: 0.05, max: 0.7, step: 0.005 },
   radialJitter: { min: 0, max: 0.5, step: 0.001 },
   particleSize: { min: 0.1, max: 10, step: 0.05 },
   alphaAttenuation: { min: 0, max: 5, step: 0.01 },
   cameraDistance: { min: 0.2, max: 5, step: 0.01 },
-  cameraOrbitSpeed: { min: -4, max: 4, step: 0.01 },
-
-  'attract.freq': { min: 0, max: 20, step: 0.01 },
-  'attract.speed': { min: -3, max: 3, step: 0.01 },
-  'attract.maxStep': { min: 0, max: 0.1, step: 0.001 },
 };
 
-function bindObject(folder: FolderApi, source: Record<string, unknown>, path: string[], onChange: () => void): void {
-  for (const key of Object.keys(source)) {
-    const nextPath = [...path, key];
-    const pathKey = nextPath.join('.');
-    const value = source[key];
+const PRESET_BINDINGS: Record<string, NumericBinding> = {
+  attractSpeed: { min: -3, max: 3, step: 0.01 },
+  attractFreq: { min: 0, max: 20, step: 0.01 },
+  attractMaxStep: { min: 0, max: 0.1, step: 0.001 },
+  cameraOrbitSpeed: { min: -4, max: 4, step: 0.01 },
+  breathAmp: { min: 0, max: 1, step: 0.001 },
+  breathFreq: { min: 0, max: 20, step: 0.01 },
+  colorLerpTau: { min: 0.05, max: 5, step: 0.01 },
+};
 
-    if (typeof value === 'number') {
-      const options = NUMERIC_BINDINGS[pathKey] ?? {};
-      const binding = folder.addBinding(source, key, options);
-      binding.on('change', onChange);
+function colorToHex(n: number): string {
+  return `#${n.toString(16).padStart(6, '0')}`;
+}
+
+function bindPreset(folder: TpFolder, preset: OrbLiveConfig, onChange: () => void): void {
+  for (const key of Object.keys(preset) as (keyof OrbLiveConfig)[]) {
+    const value = preset[key];
+    if (key === 'baseColor' || key === 'consciousColor') {
+      const model = { value: colorToHex(value as number) };
+      const binding = folder.addBinding(model, 'value', { view: 'color' });
+      binding.label = key;
+      binding.on('change', (ev: { value: unknown }) => {
+        (preset as Record<string, unknown>)[key] = parseInt((ev.value as string).slice(1), 16);
+        onChange();
+      });
       continue;
     }
-
-    if (value && typeof value === 'object' && !Array.isArray(value)) {
-      const nestedFolder = folder.addFolder({ title: key, expanded: path.length === 0 });
-      bindObject(nestedFolder, value as Record<string, unknown>, nextPath, onChange);
+    if (typeof value === 'number') {
+      const opts = PRESET_BINDINGS[key] ?? {};
+      const binding = folder.addBinding(preset as Record<string, unknown>, key, opts);
+      binding.on('change', onChange);
     }
   }
 }
 
-export function AgentOrb({ liveConfig }: AgentOrbProps) {
+export function AgentOrb({ liveConfig, presets, onPresetChange }: AgentOrbProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const paneHostRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<ReturnType<typeof createOrbScene> | null>(null);
@@ -77,13 +92,27 @@ export function AgentOrb({ liveConfig }: AgentOrbProps) {
 
     const paneHost = paneHostRef.current;
     const pane = paneHost
-      ? new Pane({ title: 'Orb Controls', expanded: true, container: paneHost })
+      ? new Pane({ title: 'Orb Controls', expanded: true, container: paneHost }) as unknown as TpPane
       : null;
 
     if (pane) {
-      bindObject(pane, ORB_CONFIG as unknown as Record<string, unknown>, [], () => {
-        scene.updateConfig();
-      });
+      const geoFolder = pane.addFolder({ title: 'geometry', expanded: true });
+      const cfg = ORB_CONFIG as unknown as Record<string, unknown>;
+      for (const key of Object.keys(ORB_CONFIG) as (keyof typeof ORB_CONFIG)[]) {
+        const value = ORB_CONFIG[key];
+        if (typeof value === 'number') {
+          const opts = GEOMETRY_BINDINGS[key] ?? {};
+          const binding = geoFolder.addBinding(cfg, key, opts);
+          binding.on('change', () => scene.updateConfig());
+        }
+      }
+
+      if (presets) {
+        for (const [name, preset] of Object.entries(presets)) {
+          const f = pane.addFolder({ title: name, expanded: false });
+          bindPreset(f, preset, () => onPresetChange?.());
+        }
+      }
     }
 
     scene.updateConfig();
@@ -103,15 +132,15 @@ export function AgentOrb({ liveConfig }: AgentOrbProps) {
 
   useEffect(() => {
     if (!liveConfig) return;
-    if (liveConfig.attractSpeed !== undefined) ORB_CONFIG.attract.speed = liveConfig.attractSpeed;
-    if (liveConfig.attractFreq !== undefined) ORB_CONFIG.attract.freq = liveConfig.attractFreq;
-    if (liveConfig.cameraOrbitSpeed !== undefined) ORB_CONFIG.cameraOrbitSpeed = liveConfig.cameraOrbitSpeed;
-    sceneRef.current?.updateConfig();
-    sceneRef.current?.setBreath(liveConfig.breathFreq ?? 0, liveConfig.breathAmp ?? 0);
+    const s = sceneRef.current;
+    if (!s) return;
+    s.setAttract(liveConfig.attractFreq ?? 8.7, liveConfig.attractSpeed ?? -0.26, liveConfig.attractMaxStep ?? 0.02);
+    s.setCameraOrbitSpeed(liveConfig.cameraOrbitSpeed ?? 0.3);
+    s.setBreath(liveConfig.breathFreq ?? 0, liveConfig.breathAmp ?? 0);
+    s.setColors(liveConfig.baseColor ?? 0xffffff, liveConfig.consciousColor ?? 0xffffff);
     if (liveConfig.colorLerpTau !== undefined) {
-      sceneRef.current?.setColorLerpTau(liveConfig.colorLerpTau);
+      s.setColorLerpTau(liveConfig.colorLerpTau);
     }
-    sceneRef.current?.setColors(liveConfig.baseColor ?? 0xffffff, liveConfig.consciousColor ?? 0xffffff);
   }, [liveConfig]);
 
   return (
