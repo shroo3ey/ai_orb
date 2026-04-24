@@ -11,6 +11,11 @@ export interface OrbConfig {
   particleCount: number;
   orbRadius: number;         // physical radius of the particle sphere (world units)
   radialJitter: number;      // max fractional radial deviation from perfect sphere (e.g. 0.02 = +/-2%)
+  core: {
+    ratio: number;           // fraction of particles seeded into the central mini-orb
+    radius: number;          // core radius as fraction of orbRadius
+    concentration: number;   // >1 packs particles tighter toward the center
+  };
   pointSizeBase: number;     // base pixel size multiplier (uSize uniform)
   pointSizeScale: number;    // perspective scale (K in K/viewDist); raise for bigger particles
   alphaAttenuation: number;  // multiplied into final fragment alpha; lower = more translucent
@@ -35,6 +40,7 @@ export interface OrbConfig {
   colors: {
     base: number;            // hex — dominant particle color (dim particles)
     conscious: number;       // hex — tint for bright particles in conscious state
+    core: number;            // hex — center mini-orb particle color
   };
   states: {
     idle: StateMotion;
@@ -46,6 +52,11 @@ export const ORB_CONFIG: OrbConfig = {
   particleCount: 12700,
   orbRadius: 0.15,
   radialJitter: 0,
+  core: {
+    ratio: 0.16,
+    radius: 0.22,
+    concentration: 2.4,
+  },
   pointSizeBase: 1.0,
   pointSizeScale: 2.0,
   alphaAttenuation: 5,
@@ -76,6 +87,7 @@ export const ORB_CONFIG: OrbConfig = {
   colors: {
     base:      0xffffff,
     conscious: 0xefa61e,
+    core:      0x35c6ff,
   },
 
   states: {

@@ -6,6 +6,7 @@ ${NOISE_GLSL}
 attribute float aSeed;
 attribute float aRadialOffset;
 attribute float aPhase; // [0,1] per-particle random used as angular-speed multiplier
+attribute float aCore;
 
 uniform float uTime;
 uniform float uState;
@@ -42,6 +43,7 @@ uniform vec2 uBreathAmps;
 varying float vSeed;
 varying float vDepth;
 varying float vEdgeFade;
+varying float vCore;
 
 // Rodrigues rotation around an arbitrary unit axis through the origin.
 // Preserves distance from origin, so sphere membership is retained.
@@ -127,5 +129,6 @@ void main() {
 
   vEdgeFade = smoothstep(0.20, 0.02, abs(aRadialOffset));
   vSeed = aSeed;
+  vCore = aCore;
 }
 `;

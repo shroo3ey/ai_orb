@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { Pane } from 'tweakpane';
+import { Pane, type FolderApi } from 'tweakpane';
 import { createOrbScene, type OrbState } from './orb-scene';
 import { ORB_CONFIG } from './config';
 
@@ -21,6 +21,9 @@ const NUMERIC_BINDINGS: Record<string, NumericBinding> = {
   particleCount: { min: 500, max: 30000, step: 100 },
   orbRadius: { min: 0.05, max: 0.7, step: 0.005 },
   radialJitter: { min: 0, max: 0.5, step: 0.001 },
+  'core.ratio': { min: 0, max: 0.8, step: 0.01 },
+  'core.radius': { min: 0.02, max: 0.95, step: 0.005 },
+  'core.concentration': { min: 0.5, max: 6, step: 0.05 },
   pointSizeBase: { min: 0.1, max: 8, step: 0.05 },
   pointSizeScale: { min: 0.1, max: 10, step: 0.05 },
   alphaAttenuation: { min: 0, max: 5, step: 0.01 },
@@ -59,13 +62,13 @@ function colorToHexString(color: number): string {
   return `#${color.toString(16).padStart(6, '0')}`;
 }
 
-function bindObject(folder: any, source: Record<string, unknown>, path: string[], onChange: () => void): void {
+function bindObject(folder: FolderApi, source: Record<string, unknown>, path: string[], onChange: () => void): void {
   for (const key of Object.keys(source)) {
     const nextPath = [...path, key];
     const pathKey = nextPath.join('.');
     const value = source[key];
 
-    if (pathKey === 'colors.base' || pathKey === 'colors.conscious') {
+    if (pathKey === 'colors.base' || pathKey === 'colors.conscious' || pathKey === 'colors.core') {
       const colorModel = { value: colorToHexString(value as number) };
       const colorBinding = folder.addBinding(colorModel, 'value', { view: 'color' });
       colorBinding.label = key;
